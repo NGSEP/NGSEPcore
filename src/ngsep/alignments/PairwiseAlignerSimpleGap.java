@@ -119,7 +119,7 @@ public class PairwiseAlignerSimpleGap implements PairwiseAligner {
 		return matchScores;
 	}
 	
-	public PairwiseAlignment calculateAlignment(CharSequence s1, CharSequence s2) 
+	synchronized public PairwiseAlignment calculateAlignment(CharSequence s1, CharSequence s2) 
 	{		
 		initMatrices(s1, s2);
 	    calculateMatrices(s1, s2);	    

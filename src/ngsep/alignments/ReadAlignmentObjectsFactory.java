@@ -143,11 +143,10 @@ public class ReadAlignmentObjectsFactory {
 	private int lastAlignerIndex = 0;
 	public synchronized UngappedSearchHitsClusterAligner requestAligner()  {
 		if(UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_SHORT_READS==alignmentAlgorithm) return new ShortReadsUngappedSearchHitsClusterAligner();
-		if(aligners.size()==0) {
-			LongReadsUngappedSearchHitsClusterAligner aligner = new LongReadsUngappedSearchHitsClusterAligner(alignmentAlgorithm);
-			aligners.add(aligner);
-			return aligner;
-		} else if (alignmentAlgorithm!=UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_AFFINE_GAP || aligners.size()<2*numThreads) {
+		if (alignmentAlgorithm!=UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_AFFINE_GAP && alignmentAlgorithm!=UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_SIMPLE_GAP) {
+			return new LongReadsUngappedSearchHitsClusterAligner(alignmentAlgorithm);
+		}
+		if(aligners.size()<2*numThreads) {
 			LongReadsUngappedSearchHitsClusterAligner aligner = new LongReadsUngappedSearchHitsClusterAligner(alignmentAlgorithm);
 			aligners.add(aligner);
 			lastAlignerIndex=aligners.size()-1;

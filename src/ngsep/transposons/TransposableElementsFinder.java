@@ -69,14 +69,14 @@ public class TransposableElementsFinder {
 	private String transposonsDatabaseFile = null;
 	private int minTELength = DEF_MIN_TE_LENGTH;
 	private int rounds = DEF_ROUNDS;
+	private double minProportionBestCount = 0;
+	private int limitGenomeLength = 0;
 	private boolean runDeNovo = false;
+	private int maxAlnsPerTransposon = 10000;
 	private int numThreads = DEF_NUM_THREADS;
 	
 	//Other attributes
 	private double minWeightedCount = 10;
-	private int maxAlnsPerTransposon = 10000;
-	private double minProportionBestCount = 0;
-	private int limitGenomeLength = 0;
 	private boolean validateFamily = false;
 	
 	// Model attributes
@@ -145,6 +145,16 @@ public class TransposableElementsFinder {
 		this.setLimitGenomeLength(Integer.parseInt(value));
 	}
 	
+	public boolean isRunDeNovo() {
+		return runDeNovo;
+	}
+	public void setRunDeNovo(boolean runDeNovo) {
+		this.runDeNovo = runDeNovo;
+	}
+	public void setRunDeNovo(Boolean runDeNovo) {
+		this.setRunDeNovo(runDeNovo.booleanValue());
+	}
+	
 	public boolean isValidateFamily() {
 		return validateFamily;
 	}
@@ -152,7 +162,7 @@ public class TransposableElementsFinder {
 		this.validateFamily = validateFamily;
 	}
 	public void setValidateFamily(Boolean validateFamily) {
-		this.validateFamily = validateFamily;
+		this.setValidateFamily(validateFamily.booleanValue());
 	}
 	
 	public int getNumThreads() {
@@ -206,7 +216,9 @@ public class TransposableElementsFinder {
 		List<TransposableElementAnnotation> deNovoAnn = new ArrayList<TransposableElementAnnotation>();
 		if(transposonsDatabaseFile!=null) knownElements.addAll(loadKnownTransposons());
 		if(runDeNovo) {
-			DeNovoTransposableElementsFinder deNovoFinder = new DeNovoTransposableElementsFinderConservedEnds();
+			DeNovoTransposableElementsFinderConservedEnds deNovoFinder = new DeNovoTransposableElementsFinderConservedEnds();
+			deNovoFinder.setLog(log);
+			deNovoFinder.setProgressNotifier(progressNotifier);
 			deNovoAnn = deNovoFinder.findTransposons(genome);
 			knownElements.addAll(extractTEs(genome, deNovoAnn));
 		}

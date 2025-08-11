@@ -1216,6 +1216,9 @@ Number of search rounds to identify new TEs from previously identified TEs.
 <option id="l" type="INT" attribute="limitGenomeLength">
 Maximum length of sequences to analyze together. This parameter helps to control the amount of memory spent by the process at the expense of increased runtime. Default: 0 (no limit).
 </option>
+<option id="n" type="BOOLEAN" attribute="runDeNovo">
+Runs the process for de-novo identification of conserved TEs. WARN: It causes an important increase in runtime.
+</option>
 <option id="v" type="BOOLEAN" attribute="validateFamily">
 Infer the family of large TE annotations using HMM alignments. WARN: It causes an important increase in runtime.
 </option>

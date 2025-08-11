@@ -117,7 +117,7 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 		return transitionMatrix[step][source][dest];
 	}
 
-	public ProfileAlignmentDomain findDomain(String query) {
+	synchronized public ProfileAlignmentDomain findDomain(String query) {
 		ProfileAlignmentDomain domain = null;
 		calculateViterbiPathMatrix(query);
 		StringBuilder profile = new StringBuilder();

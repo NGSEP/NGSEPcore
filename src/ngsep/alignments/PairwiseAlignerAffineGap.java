@@ -122,7 +122,7 @@ public class PairwiseAlignerAffineGap implements PairwiseAligner {
 		forceStart1 = forceEnd1 = forceStart2 = forceEnd2 = !local;
 	}
 
-	public PairwiseAlignment calculateAlignment(CharSequence s1, CharSequence s2) 
+	synchronized public PairwiseAlignment calculateAlignment(CharSequence s1, CharSequence s2) 
 	{		
 		initMatrices(s1, s2);
 	    calculateMatrices(s1, s2);	    
