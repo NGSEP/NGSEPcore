@@ -58,7 +58,15 @@ public class DeNovoTransposableElementsFinderConservedEnds implements DeNovoTran
 	public void setStep(int step) {
 		this.step = step;
 	}
+	
+	
 
+	public int getNumThreads() {
+		return numThreads;
+	}
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+	}
 	@Override
 	public List<TransposableElementAnnotation> findTransposons(ReferenceGenome genome) {
 		ReadsAligner aligner = new ReadsAligner(genome,Platform.PACBIO);
@@ -111,6 +119,7 @@ public class DeNovoTransposableElementsFinderConservedEnds implements DeNovoTran
 			DNAMaskedSequence read = (DNAMaskedSequence)dna.subSequence(i,i+subseqLength);
 			List<ReadAlignment> alns = aligner.alignRead(new QualifiedSequence("",read));
 			List<ReadAlignment> alnsSeq = selectAlnsInSequence(seq.getName(),alns);
+			if(i == debugPos) System.err.println("Mapping sequence starting at "+i+" alignments: "+alns.size()+" alnsSeq: "+alnsSeq);
 			ReadAlignment aln = selectCloseAlignment(i,subseqLength,alnsSeq);
 			if(aln==null) continue;
 			//Discard possible hits due to tandem repeats
@@ -137,7 +146,7 @@ public class DeNovoTransposableElementsFinderConservedEnds implements DeNovoTran
 		ReadAlignment bestAln = null;
 		for(ReadAlignment aln:alns) {
 			if(aln.getFirst()<start+length) continue;
-			if(aln.getFirst()>start+30000) continue;
+			if(aln.getFirst()>start+10000) continue;
 			if(improvedAln(start, bestAln, aln)) bestAln = aln;
 		}
 		return bestAln;
@@ -207,6 +216,7 @@ public class DeNovoTransposableElementsFinderConservedEnds implements DeNovoTran
 	
 	
 	private boolean passFilters(TransposableElementAnnotation ann) {
+		if(ann.getInferredFamily()==null) return false;
 		if(filterOrder!=null) {
 			TransposableElementFamily family = ann.getInferredFamily();
 			if(family==null || !family.getOrder().equals(filterOrder.getOrder())) return false;
@@ -217,7 +227,8 @@ public class DeNovoTransposableElementsFinderConservedEnds implements DeNovoTran
 	public static void main(String[] args) throws Exception {
 		ReferenceGenome genome = new ReferenceGenome(args[0]);
 		DeNovoTransposableElementsFinderConservedEnds instance = new DeNovoTransposableElementsFinderConservedEnds();
-		instance.numThreads = 4;
+		instance.numThreads = 1;
+		instance.filterOrder = null;
 		List<TransposableElementAnnotation> anns = instance.findTransposons(genome);
 		try (PrintStream out=new PrintStream(args[1])) {
 			for(TransposableElementAnnotation ann:anns) {

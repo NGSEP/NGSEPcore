@@ -219,6 +219,7 @@ public class TransposableElementsFinder {
 			DeNovoTransposableElementsFinderConservedEnds deNovoFinder = new DeNovoTransposableElementsFinderConservedEnds();
 			deNovoFinder.setLog(log);
 			deNovoFinder.setProgressNotifier(progressNotifier);
+			deNovoFinder.setNumThreads(numThreads);
 			deNovoAnn = deNovoFinder.findTransposons(genome);
 			knownElements.addAll(extractTEs(genome, deNovoAnn));
 		}

@@ -103,15 +103,15 @@ public class TransposableElementAnnotation implements GenomicRegion {
 	}
 
 	public String getQueryName() {
-		return source.getId();
+		return source!=null?source.getId():null;
 	}
 
 	public TransposableElementFamily getSourceFamily() {
-		return source.getFamily();
+		return source!=null?source.getFamily():null;
 	}
 
 	public String getTaxonomy() {
-		return source.getTaxonomy();
+		return source!=null?source.getTaxonomy():null;
 	}
 	public int getCount() {
 		return count;
