@@ -530,6 +530,17 @@ public class KmersExtractor {
 	 * @return long[] Array of kmer codes. The index corresponds to the sequence origin minus start
 	 */
 	public static long[] extractDNAKmerCodes (CharSequence source, int kmerLength, int start, int end) {
+		return extractDNAKmerCodes(source, kmerLength, start, end, false);
+	}
+	/**
+	 * Extracts the codes representing DNA kmers from the given sequence
+	 * @param source Sequence to extract kmers. Usually a String but it works with StringBuilder or other types of sequences
+	 * @param kmerLength must be at most 31 to allow unique encoding of DNA kmers
+	 * @param start of the source sequence
+	 * @param end of the source sequence
+	 * @return long[] Array of kmer codes. The index corresponds to the sequence origin minus start
+	 */
+	public static long[] extractDNAKmerCodes (CharSequence source, int kmerLength, int start, int end, boolean ignoreLowComplexity) {
 		validateLimits(source, start, end);
 		if(kmerLength>31) throw new IllegalArgumentException("This method only works with kmer lengths up to 31");
 		int n = source.length();
@@ -547,7 +558,7 @@ public class KmersExtractor {
 			long code;
 			if(lastCode==-1) {
 				CharSequence kmer = source.subSequence(i, i+kmerLength);
-				if (!DNASequence.isDNA(kmer)) continue;
+				if (!passFilters(kmer, false, ignoreLowComplexity)) continue;
 				code = DNASequence.getDNAHash(kmer, 0, kmerLength);
 			} else {
 				char lastCharNextKmer = source.charAt(i+kmerLength-1);
@@ -567,9 +578,12 @@ public class KmersExtractor {
 		return kmerCodesArray;
 	}
 	public static Map<Integer,Long>  extractDNAKmerCodesAsMap (CharSequence source, int kmerLength, int start, int end) {
+		return extractDNAKmerCodesAsMap(source, kmerLength, start, end, false);
+	}
+	public static Map<Integer,Long>  extractDNAKmerCodesAsMap (CharSequence source, int kmerLength, int start, int end, boolean ignoreLowComplexity) {
 		//Not good for concurrency
 		Map<Integer,Long> kmerCodesMap = new LinkedHashMap<Integer, Long>();
-		long [] codes = extractDNAKmerCodes(source, kmerLength, start, end);
+		long [] codes = extractDNAKmerCodes(source, kmerLength, start, end, ignoreLowComplexity);
 		for(int i=0;i<codes.length;i++) {
 			if(codes[i]>=0) kmerCodesMap.put(start+i, codes[i]);
 		}
@@ -603,7 +617,7 @@ public class KmersExtractor {
 	}*/
 	
 	
-	private static boolean passFilters(String kmer, boolean freeText, boolean ignoreLowComplexity) {
+	private static boolean passFilters(CharSequence kmer, boolean freeText, boolean ignoreLowComplexity) {
 		if(!freeText && !DNASequence.isDNA(kmer)) return false;
 		if(ignoreLowComplexity && isLowComplexity(kmer)) return false;
 		return true;
@@ -621,8 +635,9 @@ public class KmersExtractor {
 		}
 		return kmer;
 	}
-	public static final boolean isLowComplexity(String kmerStr) {
+	public static final boolean isLowComplexity(CharSequence kmer) {
 		// TODO: Actually calculate complexity
+		String kmerStr = kmer.toString();
 		if(kmerStr.contains("AAAAAAAA")) return true;
 		if(kmerStr.contains("TTTTTTTT")) return true;
 		if(kmerStr.contains("TATATATA")) return true;
