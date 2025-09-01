@@ -31,7 +31,8 @@ public class DeNovoTransposableElementsFinderShortIR implements DeNovoTransposab
 
 	private int kmerLength = 10;
 	private int windowLength = 2000;
-	private int minLength = 100;
+	private int minElementLength = 100;
+	private int minTIRLength = 12;
 	private int step = 1000;
 	private int numThreads = 1;
 	
@@ -125,22 +126,31 @@ public class DeNovoTransposableElementsFinderShortIR implements DeNovoTransposab
 		Map<Long, List<Integer>> reverseMapF = getReverseMap(kmersMapForward);
 		Map<Integer,Long> kmersMapReverse = KmersExtractor.extractDNAKmerCodesAsMap(rc, kmerLength, 0, rc.length(),true);
 		Map<Long, List<Integer>> reverseMapR = getReverseMap(kmersMapReverse);
-		PairwiseAligner pwa = new PairwiseAlignerSimpleGap(minLength);
+		PairwiseAlignerSimpleGap pwa = new PairwiseAlignerSimpleGap(minElementLength);
+		pwa.setForceEnd1(false);
+		pwa.setForceEnd2(false);
+		int lastCandidateStart = seqDNA.length();
 		for(Map.Entry<Integer, Long> entry:kmersMapReverse.entrySet()) {
 			List<Integer> posKmerForward = reverseMapF.get(entry.getValue());
 			if(posKmerForward==null) continue;
-			int startTIR = posKmerForward.get(posKmerForward.size()-1);
+			int startTIR = -1;
+			for(int i = posKmerForward.size()-1;i>=0;i--) {
+				startTIR = posKmerForward.get(i);
+				if(startTIR<lastCandidateStart) break;
+			}
+			if(startTIR>=lastCandidateStart) continue;
 			List<Integer> posRevList = reverseMapR.get(entry.getValue()); 
 			int endTIR = seqDNA.length() - posRevList.get(posRevList.size()-1);
-			if(endTIR<startTIR+minLength) continue;
-			if(startTIR == 591) System.out.println("SeqLen: "+seqDNA.length()+" Kmer: "+new String( AbstractLimitedSequence.getSequence(entry.getValue(), kmerLength, new DNASequence()))+" posForward: "+posKmerForward+" posReverse: "+posRevList+" limits TIR: "+startTIR+" - "+endTIR);
+			if(endTIR<startTIR+minElementLength) continue;
+			//if(startTIR == 591) System.out.println("SeqLen: "+seqDNA.length()+" Kmer: "+new String( AbstractLimitedSequence.getSequence(entry.getValue(), kmerLength, new DNASequence()))+" posForward: "+posKmerForward+" posReverse: "+posRevList+" limits TIR: "+startTIR+" - "+endTIR);
 			String candidateTIR = seqDNA.subSequence(startTIR, endTIR).toString();
 			int [] tirInfo = validateTIR(candidateTIR,pwa);
-			if(startTIR == 591) System.out.println("Seq: "+candidateTIR+" info: "+tirInfo[0]+" "+tirInfo[1]+" "+tirInfo[2]);
+			//if(startTIR == 591) System.out.println("Seq: "+candidateTIR+" info: "+tirInfo[0]+" "+tirInfo[1]+" "+tirInfo[2]);
 			if(tirInfo[0]==1) {
 				TransposableElementAnnotation tirCandidate = new TransposableElementAnnotation(seq.getName(), start + startTIR+1, start+endTIR);
-				tirCandidate.setRepeatLimits(start+tirInfo[1], start+tirInfo[2], (byte)0);
+				tirCandidate.setRepeatLimits(start+startTIR+tirInfo[1], start+startTIR+tirInfo[2], (byte)0);
 				answer.add(tirCandidate);
+				lastCandidateStart = startTIR;
 			}
 		}
 		answP.set(n, answer);
@@ -149,21 +159,23 @@ public class DeNovoTransposableElementsFinderShortIR implements DeNovoTransposab
 		int[] info = new int [3];
 		int n = candidateTIR.length();
 		info[0]=0;
-		if(n>=minLength) 
+		if(n>=minElementLength) 
 		{
-			// TODO: Expand and validate other filters
-			int end = minLength/2;
+			// TODO: Validate other filters
+			int end = minElementLength/2;
 			String leftSegment = candidateTIR.substring(0, end);
 			String rightSegment = DNAMaskedSequence.getReverseComplement(candidateTIR.substring(n-end, n)).toString();
 			PairwiseAlignment alnAfterHit = pwa.calculateAlignment(leftSegment, rightSegment);
 			int internalLeft = alnAfterHit.getEnd1();
 			int internalRight = n-alnAfterHit.getEnd2();
-			if(internalLeft+minLength<internalRight) {
+			int mismatches = alnAfterHit.getMismatches();
+			int limit = Math.min(internalLeft, internalRight)/5;
+			limit = Math.max(limit, 2);
+			if(internalLeft+minElementLength<internalRight && Math.min(internalLeft, internalRight) >= minTIRLength &&  mismatches<=limit) {
 				info[0]=1;
 				info[1] = internalLeft;
-				info[2] = candidateTIR.length()-internalRight;
+				info[2] = internalRight;
 			}
-			
 		}
 		return info;
 	}
