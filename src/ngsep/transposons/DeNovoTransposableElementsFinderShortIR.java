@@ -111,15 +111,25 @@ public class DeNovoTransposableElementsFinderShortIR implements DeNovoTransposab
 			throw new RuntimeException("Process interrupted", e);
 		}
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
+		TransposableElementAnnotation lastAnn = null;
 		for(List<TransposableElementAnnotation> answP1:answP) {
-			if(answP1!=null) answer.addAll(answP1);
+			if(answP1==null) continue;
+			for(TransposableElementAnnotation ann:answP1) {
+				if(lastAnn==null || lastAnn.getLast()<ann.getFirst()) {
+					answer.add(ann);
+					lastAnn = ann;
+				}
+			}
 		}
 		Collections.sort(answer,GenomicRegionPositionComparator.getInstance());
 		log.info("Processed sequence "+seq.getName()+". Number of TIRs: "+answer.size());
 		return answer;
 	}
-	private void findTIRsProcess(QualifiedSequence seq, int start, int end, List<List<TransposableElementAnnotation>> answP, int n) {
+	private void findTIRsProcess(QualifiedSequence seq, int start, int end, List<List<TransposableElementAnnotation>> answP, int answPIndex) {
+		HMMTransposonDomainsFinder domainsFinder = new HMMTransposonDomainsFinder();
+		domainsFinder.loadHMMsFromClasspath();
 		CharSequence seqDNA = seq.getCharacters().subSequence(start, end);
+		int n = seqDNA.length();
 		CharSequence rc = DNAMaskedSequence.getReverseComplement(seqDNA);
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 		Map<Integer,Long> kmersMapForward = KmersExtractor.extractDNAKmerCodesAsMap(seqDNA, kmerLength, 0, seqDNA.length(),true);
@@ -131,6 +141,7 @@ public class DeNovoTransposableElementsFinderShortIR implements DeNovoTransposab
 		pwa.setForceEnd2(false);
 		int lastCandidateStart = seqDNA.length();
 		for(Map.Entry<Integer, Long> entry:kmersMapReverse.entrySet()) {
+			if(n-entry.getKey()>lastCandidateStart) continue;
 			List<Integer> posKmerForward = reverseMapF.get(entry.getValue());
 			if(posKmerForward==null) continue;
 			int startTIR = -1;
@@ -138,39 +149,55 @@ public class DeNovoTransposableElementsFinderShortIR implements DeNovoTransposab
 				startTIR = posKmerForward.get(i);
 				if(startTIR<lastCandidateStart) break;
 			}
+			if(start == debugPos) System.out.println("Next candidate from: "+startTIR+" to: "+(n-entry.getKey())+" lastCandStart: "+lastCandidateStart);
 			if(startTIR>=lastCandidateStart) continue;
 			List<Integer> posRevList = reverseMapR.get(entry.getValue()); 
-			int endTIR = seqDNA.length() - posRevList.get(posRevList.size()-1);
+			int endTIR = n - posRevList.get(posRevList.size()-1);
 			if(endTIR<startTIR+minElementLength) continue;
-			//if(startTIR == 591) System.out.println("SeqLen: "+seqDNA.length()+" Kmer: "+new String( AbstractLimitedSequence.getSequence(entry.getValue(), kmerLength, new DNASequence()))+" posForward: "+posKmerForward+" posReverse: "+posRevList+" limits TIR: "+startTIR+" - "+endTIR);
-			String candidateTIR = seqDNA.subSequence(startTIR, endTIR).toString();
-			int [] tirInfo = validateTIR(candidateTIR,pwa);
-			//if(startTIR == 591) System.out.println("Seq: "+candidateTIR+" info: "+tirInfo[0]+" "+tirInfo[1]+" "+tirInfo[2]);
+			if(start == debugPos) System.out.println("SeqLen: "+seqDNA.length()+" Kmer: "+new String( AbstractLimitedSequence.getSequence(entry.getValue(), kmerLength, new DNASequence()))+" posForward: "+posKmerForward+" posReverse: "+posRevList+" limits TIR: "+startTIR+" - "+endTIR);
+			DNAMaskedSequence candidateTIR = (DNAMaskedSequence)seqDNA.subSequence(startTIR, endTIR);
+			int [] tirInfo = validateTIR(candidateTIR.toString(),pwa, start == debugPos);
+			if(start == debugPos) System.out.println("Seq: "+candidateTIR+" info: "+tirInfo[0]+" "+tirInfo[1]+" "+tirInfo[2]);
 			if(tirInfo[0]==1) {
 				TransposableElementAnnotation tirCandidate = new TransposableElementAnnotation(seq.getName(), start + startTIR+1, start+endTIR);
 				tirCandidate.setRepeatLimits(start+startTIR+tirInfo[1], start+startTIR+tirInfo[2], (byte)0);
 				answer.add(tirCandidate);
 				lastCandidateStart = startTIR;
+				domainsFinder.assignFamily(tirCandidate, candidateTIR);
 			}
 		}
-		answP.set(n, answer);
+		//if(start > 28000 && start < 33000) System.out.println("Start window: "+start+" Final candidate regions: "+answer.size());
+		answP.set(answPIndex, answer);
 	}
-	private int[] validateTIR(String candidateTIR, PairwiseAligner pwa) {
+	private int[] validateTIR(String candidateTIR, PairwiseAligner pwa, boolean debug) {
 		int[] info = new int [3];
 		int n = candidateTIR.length();
 		info[0]=0;
 		if(n>=minElementLength) 
 		{
+			if(debug) System.out.println("Element length: "+n);
 			// TODO: Validate other filters
-			int end = minElementLength/2;
+			int end = Math.max(minElementLength,n/2)/2;
 			String leftSegment = candidateTIR.substring(0, end);
 			String rightSegment = DNAMaskedSequence.getReverseComplement(candidateTIR.substring(n-end, n)).toString();
+			if(debug) {
+				System.out.println("L: "+leftSegment);
+				System.out.println("R: "+rightSegment);
+				
+			}
 			PairwiseAlignment alnAfterHit = pwa.calculateAlignment(leftSegment, rightSegment);
+			if(debug) {
+				//pwa.printAlignmentMatrix(pwa.getMatchScores(), leftSegment, rightSegment);
+				System.out.println("AlnL: "+alnAfterHit.getAlignedSequence1());
+				System.out.println("AlnR: "+alnAfterHit.getAlignedSequence2());
+				
+			}
 			int internalLeft = alnAfterHit.getEnd1();
 			int internalRight = n-alnAfterHit.getEnd2();
 			int mismatches = alnAfterHit.getMismatches();
 			int limit = Math.min(internalLeft, internalRight)/5;
 			limit = Math.max(limit, 2);
+			if(debug) System.out.println("Limits: "+internalLeft+" "+internalRight+" mismatches: "+mismatches+" limit: "+limit);
 			if(internalLeft+minElementLength<internalRight && Math.min(internalLeft, internalRight) >= minTIRLength &&  mismatches<=limit) {
 				info[0]=1;
 				info[1] = internalLeft;
