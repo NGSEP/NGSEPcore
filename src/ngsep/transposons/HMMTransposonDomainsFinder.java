@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import ngsep.hmm.ProfileAlignmentDomain;
 import ngsep.hmm.ProfileAlignmentHMM;
@@ -45,18 +46,44 @@ import ngsep.transcriptome.ProteinTranslator;
 public class HMMTransposonDomainsFinder {
 	private List<ProfileAlignmentHMM> hmms = new ArrayList<ProfileAlignmentHMM>();
 	
-	public void loadHMMsFromClasspath() {
+	public void loadHMMsFromClasspath( ) {
+		loadHMMsFromClasspath(null);
+	}
+	public void loadHMMsFromClasspath(Set<String> domainCodes ) {
 		//ProteinNullModel nullModel = new ProteinNullModel();
-				NaiveProteinNullModel nullModel = new NaiveProteinNullModel();
+		NaiveProteinNullModel nullModel = new NaiveProteinNullModel();
 		ProfileAlignmentHMMLoader hmmLoader = new ProfileAlignmentHMMLoader(nullModel);
 		try {
 			hmmLoader.loadDomainCodes();
 			List<ProfileAlignmentHMM> hmmsFile = hmmLoader.loadHMMs();
-			//for(ProfileAlignmentHMM hmm:hmmsFile) System.out.println("Loaded hmm: "+hmm.getId()+" name: "+hmm.getName()+" domainCode: "+hmm.getDomainCode());
-			hmms.addAll(hmmsFile);
+			//for(ProfileAlignmentHMM hmm:hmmsFile) System.out.println("Loaded hmm: "+hmm.getId()+" name: "+hmm.getName()+" domainCode: "+hmm.getDomainCode()+" accepted codes: "+domainCodes);
+			if (domainCodes==null) {
+				hmms.addAll(hmmsFile);
+				return;
+			}
+			for(ProfileAlignmentHMM hmm:hmmsFile) {
+				if(domainCodes.contains(hmm.getDomainCode())) {
+					//System.out.println("Adding hmm: "+hmm.getId());
+					hmms.add(hmm);
+				}
+			}	
 		} catch (IOException e) {
 			throw new RuntimeException("HMM profiles could not be loaded from classpath.",e);
 		}
+	}
+	public HMMTransposonDomainsFinder clone() {
+		HMMTransposonDomainsFinder copy = new HMMTransposonDomainsFinder();
+		for(ProfileAlignmentHMM hmm:hmms) copy.hmms.add(hmm.clone());
+		return copy;
+	}
+	
+	public int getMinLengthProfile () {
+		int answer = -1;
+		for(ProfileAlignmentHMM hmm:hmms) {
+			int next = hmm.getSteps();
+			if(answer == -1 || next < answer) answer = next;
+		}
+		return answer;
 	}
 	
 	public void assignFamily(TransposableElementAnnotation ann, DNAMaskedSequence dnaSequence) {
@@ -101,7 +128,7 @@ public class HMMTransposonDomainsFinder {
 		for(Map.Entry<Integer, String> orf:orfs.entrySet()) {
 			int startDNA = orf.getKey();
 			String aaSeq = orf.getValue();
-			//System.out.println("Testing of at start: "+startDNA+" Seq len: "+aaSeq.length()+" seq: "+aaSeq+ " reverse: "+reverse);
+			//System.out.println("Testing orf at start: "+startDNA+" Seq len: "+aaSeq.length()+" seq: "+aaSeq+ " reverse: "+reverse+" numHMMS: "+hmms.size());
 			for (ProfileAlignmentHMM hmm :hmms) {
 				//System.out.println("Testing orf at start: "+startDNA+" Next HMM: "+hmm.getId()+" code "+hmm.getDomainCode()+ " length "+ hmm.getSteps());
 				ProfileAlignmentDomain aaDomain = hmm.findDomain(aaSeq);

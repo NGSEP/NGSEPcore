@@ -50,6 +50,17 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 		this.nullmodel = nullModel;
 	}
 	
+	public ProfileAlignmentHMM clone() {
+		ProfileAlignmentHMM copy = new ProfileAlignmentHMM(id, steps, states, nullmodel);
+		copy.name = this.name;
+		copy.domainCode = this.domainCode;
+		copy.miu = this.miu;
+		copy.lambda = this.lambda;
+		copy.transitionMatrix = this.transitionMatrix;
+		return copy;
+		
+	}
+	
 	
 	public String getId() {
 		return id;

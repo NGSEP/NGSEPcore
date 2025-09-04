@@ -4,8 +4,10 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.alignments.PairwiseAligner;
@@ -35,6 +37,16 @@ public class DeNovoTransposableElementsFinderShortIR implements DeNovoTransposab
 	private int minTIRLength = 12;
 	private int step = 1000;
 	private int numThreads = 1;
+	private boolean keepTIRsWithoutDomains = false;
+	
+	private HMMTransposonDomainsFinder baseFinder = new HMMTransposonDomainsFinder();
+	
+	public DeNovoTransposableElementsFinderShortIR () {
+		baseFinder = new HMMTransposonDomainsFinder();
+		Set<String> domainsMITE = new HashSet<>();
+		domainsMITE.add("HTH");
+		baseFinder.loadHMMsFromClasspath(domainsMITE);
+	}
 	
 	public Logger getLog() {
 		return log;
@@ -126,8 +138,6 @@ public class DeNovoTransposableElementsFinderShortIR implements DeNovoTransposab
 		return answer;
 	}
 	private void findTIRsProcess(QualifiedSequence seq, int start, int end, List<List<TransposableElementAnnotation>> answP, int answPIndex) {
-		HMMTransposonDomainsFinder domainsFinder = new HMMTransposonDomainsFinder();
-		domainsFinder.loadHMMsFromClasspath();
 		CharSequence seqDNA = seq.getCharacters().subSequence(start, end);
 		int n = seqDNA.length();
 		CharSequence rc = DNAMaskedSequence.getReverseComplement(seqDNA);
@@ -161,9 +171,15 @@ public class DeNovoTransposableElementsFinderShortIR implements DeNovoTransposab
 			if(tirInfo[0]==1) {
 				TransposableElementAnnotation tirCandidate = new TransposableElementAnnotation(seq.getName(), start + startTIR+1, start+endTIR);
 				tirCandidate.setRepeatLimits(start+startTIR+tirInfo[1], start+startTIR+tirInfo[2], (byte)0);
-				answer.add(tirCandidate);
 				lastCandidateStart = startTIR;
-				domainsFinder.assignFamily(tirCandidate, candidateTIR);
+				int minInternalLength = baseFinder.getMinLengthProfile()*3;
+				int internalLength = tirCandidate.getRightStartRepeat()-tirCandidate.getLeftEndRepeat(); 
+				if(internalLength>minInternalLength) {
+					//System.out.println("Finding domains for candidate between "+tirCandidate.getFirst()+" and "+tirCandidate.getLast()+" internal length: "+internalLength);
+					HMMTransposonDomainsFinder domainsFinder = baseFinder.clone();
+					domainsFinder.assignFamily(tirCandidate, candidateTIR);
+				}
+				if(keepTIRsWithoutDomains || tirCandidate.getInferredFamily()!=null) answer.add(tirCandidate);  
 			}
 		}
 		//if(start > 28000 && start < 33000) System.out.println("Start window: "+start+" Final candidate regions: "+answer.size());
