@@ -43,9 +43,12 @@ public class DeNovoTransposableElementsFinderShortIR implements DeNovoTransposab
 	
 	public DeNovoTransposableElementsFinderShortIR () {
 		baseFinder = new HMMTransposonDomainsFinder();
-		Set<String> domainsMITE = new HashSet<>();
-		domainsMITE.add("HTH");
-		baseFinder.loadHMMsFromClasspath(domainsMITE);
+		Set<String> domainsTIR = new HashSet<>();
+		domainsTIR.add("HTH");
+		domainsTIR.add("MULE");
+		domainsTIR.add("MUTATOR");
+		domainsTIR.add("HAT");
+		baseFinder.loadHMMsFromClasspath(domainsTIR);
 	}
 	
 	public Logger getLog() {

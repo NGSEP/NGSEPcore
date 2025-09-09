@@ -50,6 +50,8 @@ public class FastaSortAndRenameSequences {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
 		QualifiedSequenceList sequences = new QualifiedSequenceList(handler.loadSequences(args[0]));
 		String indexFile = args[1];
+		String prefixNonMatched = null;
+		if(args.length>2) prefixNonMatched = args[2];
 		Map<String,Boolean> changeOrientations = new LinkedHashMap<>();
 		Map<String,String> changeNames = new LinkedHashMap<>();
 		try (FileReader reader = new FileReader(indexFile);
@@ -88,7 +90,8 @@ public class FastaSortAndRenameSequences {
 		for(QualifiedSequence sequence:sequences) {
 			if(!sortedSeqIds.contains(sequence.getName())) {
 				System.err.println("Unplaced sequence "+sequence.getName()+" "+sequence.getLength());
-				sortedSeqs.add(sequence);
+				if(prefixNonMatched!=null) sortedSeqs.add(new QualifiedSequence(prefixNonMatched+"_"+sequence.getName(),sequence.getCharacters()));
+				else sortedSeqs.add(sequence);
 			}
 		}
 		handler.saveSequences(sortedSeqs, System.out, 100);

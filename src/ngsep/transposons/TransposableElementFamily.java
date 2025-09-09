@@ -141,6 +141,12 @@ public class TransposableElementFamily {
 		//String [] ritDomains = {"END", "RT"};
 		//ineFamilies.add(new TransposableElementFamily("LINE","RIT", Arrays.asList(ritDomains)));
 		
+		String [] dtaDomains = {"HTH","HAT"};
+		tirFamilies.add(new TransposableElementFamily("TIR","DTA", Arrays.asList(dtaDomains)));
+		
+		String [] dtmDomains = {"HTH", "MULE"};
+		tirFamilies.add(new TransposableElementFamily("TIR","DTM", Arrays.asList(dtmDomains)));
+		
 		String [] dtpDomains = {"HTH"};
 		tirFamilies.add(new TransposableElementFamily("TIR","TIR", Arrays.asList(dtpDomains)));
 		
