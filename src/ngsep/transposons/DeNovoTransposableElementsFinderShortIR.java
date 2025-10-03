@@ -2,46 +2,36 @@ package ngsep.transposons;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Logger;
 
 import ngsep.alignments.PairwiseAligner;
 import ngsep.alignments.PairwiseAlignerSimpleGap;
 import ngsep.alignments.PairwiseAlignment;
-import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.ReferenceGenome;
-import ngsep.main.ProgressNotifier;
-import ngsep.main.ThreadPoolManager;
 import ngsep.sequences.AbstractLimitedSequence;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.QualifiedSequence;
-import ngsep.sequences.QualifiedSequenceList;
 
-public class DeNovoTransposableElementsFinderShortIR implements DeNovoTransposableElementsFinder {
-	// Logging and progress
-	private Logger log = Logger.getAnonymousLogger();
-	private ProgressNotifier progressNotifier=null;
+public class DeNovoTransposableElementsFinderShortIR extends DeNovoTransposableElementsFinderWindowSearch implements DeNovoTransposableElementsFinder {
 	
 	private int debugPos = -1;
 
-	private int kmerLength = 10;
-	private int windowLength = 2000;
 	private int minElementLength = 100;
 	private int minTIRLength = 12;
-	private int step = 1000;
-	private int numThreads = 1;
 	private boolean keepTIRsWithoutDomains = false;
 	
-	private HMMTransposonDomainsFinder baseFinder = new HMMTransposonDomainsFinder();
+	private HMMTransposonDomainsFinder baseFinder;
 	
 	public DeNovoTransposableElementsFinderShortIR () {
+		super();
+		setWindowLength(3000);
+		setStep(1000);
+		setKmerLength(10);
 		baseFinder = new HMMTransposonDomainsFinder();
 		Set<String> domainsTIR = new HashSet<>();
 		domainsTIR.add("HTH");
@@ -51,98 +41,10 @@ public class DeNovoTransposableElementsFinderShortIR implements DeNovoTransposab
 		baseFinder.loadHMMsFromClasspath(domainsTIR);
 	}
 	
-	public Logger getLog() {
-		return log;
-	}
-	public void setLog(Logger log) {
-		this.log = log;
-	}
-	
-	
-		
-	public ProgressNotifier getProgressNotifier() {
-		return progressNotifier;
-	}
-	public void setProgressNotifier(ProgressNotifier progressNotifier) {
-		this.progressNotifier = progressNotifier;
-	}
-	
-	public int getKmerLength() {
-		return kmerLength;
-	}
-	public void setKmerLength(int kmerLength) {
-		this.kmerLength = kmerLength;
-	}
-	public int getWindowLength() {
-		return windowLength;
-	}
-	public void setWindowLength(int windowLength) {
-		this.windowLength = windowLength;
-	}
-	public int getStep() {
-		return step;
-	}
-	public void setStep(int step) {
-		this.step = step;
-	}
-	public int getNumThreads() {
-		return numThreads;
-	}
-	public void setNumThreads(int numThreads) {
-		this.numThreads = numThreads;
-	}
-	@Override
-	public List<TransposableElementAnnotation> findTransposons(ReferenceGenome genome) {
-		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
-		QualifiedSequenceList seqs = genome.getSequencesList();
-		for(QualifiedSequence seq:seqs) {
-			List<TransposableElementAnnotation> answerSeq = findTransposons(seq);
-			answer.addAll(answerSeq);
-		}
-			
-		return answer;
-	}	
-	public List<TransposableElementAnnotation> findTransposons(QualifiedSequence seq) {
-		log.info("Processing sequence "+seq.getName());
-		ThreadPoolManager pool = new ThreadPoolManager(numThreads, 10*numThreads);
-		pool.setSecondsPerTask(1);
-		List<List<TransposableElementAnnotation>> answP = new ArrayList<List<TransposableElementAnnotation>>();
-		int nL = seq.getLength();
-		for(int i=0;i<nL;i+=step) {
-			final int start = i;
-			final int end = Math.min(nL, i+windowLength);
-			final int n = answP.size();
-			answP.add(null);
-			try {
-				pool.queueTask(()->findTIRsProcess(seq, start, end, answP, n));
-			} catch (InterruptedException e) {
-				throw new RuntimeException("Process interrupted", e);
-			}
-		}
-	
-		try {
-			pool.terminatePool();
-		} catch (InterruptedException e) {
-			throw new RuntimeException("Process interrupted", e);
-		}
-		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
-		TransposableElementAnnotation lastAnn = null;
-		for(List<TransposableElementAnnotation> answP1:answP) {
-			if(answP1==null) continue;
-			for(TransposableElementAnnotation ann:answP1) {
-				if(lastAnn==null || lastAnn.getLast()<ann.getFirst()) {
-					answer.add(ann);
-					lastAnn = ann;
-				}
-			}
-		}
-		Collections.sort(answer,GenomicRegionPositionComparator.getInstance());
-		log.info("Processed sequence "+seq.getName()+". Number of TIRs: "+answer.size());
-		return answer;
-	}
-	private void findTIRsProcess(QualifiedSequence seq, int start, int end, List<List<TransposableElementAnnotation>> answP, int answPIndex) {
+	protected List<TransposableElementAnnotation> findTransposons(QualifiedSequence seq, int start, int end) {
 		CharSequence seqDNA = seq.getCharacters().subSequence(start, end);
 		int n = seqDNA.length();
+		int kmerLength = getKmerLength();
 		CharSequence rc = DNAMaskedSequence.getReverseComplement(seqDNA);
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 		Map<Integer,Long> kmersMapForward = KmersExtractor.extractDNAKmerCodesAsMap(seqDNA, kmerLength, 0, seqDNA.length(),true);
@@ -186,7 +88,7 @@ public class DeNovoTransposableElementsFinderShortIR implements DeNovoTransposab
 			}
 		}
 		//if(start > 28000 && start < 33000) System.out.println("Start window: "+start+" Final candidate regions: "+answer.size());
-		answP.set(answPIndex, answer);
+		return answer;
 	}
 	private int[] validateTIR(String candidateTIR, PairwiseAligner pwa, boolean debug) {
 		int[] info = new int [3];
@@ -225,18 +127,12 @@ public class DeNovoTransposableElementsFinderShortIR implements DeNovoTransposab
 		}
 		return info;
 	}
-	private Map<Long, List<Integer>> getReverseMap(Map<Integer, Long> kmersMapForward) {
-		Map<Long,List<Integer>> reverseMapF = new HashMap<Long, List<Integer>>();
-		for(Map.Entry<Integer, Long> entry:kmersMapForward.entrySet()) {
-			List<Integer> posKmer = reverseMapF.computeIfAbsent(entry.getValue(), v-> new ArrayList<Integer>());
-			posKmer.add(entry.getKey());
-		}
-		return reverseMapF;
-	}
+	
 	public static void main(String[] args) throws Exception {
 		ReferenceGenome genome = new ReferenceGenome(args[0]);
 		DeNovoTransposableElementsFinderShortIR instance = new DeNovoTransposableElementsFinderShortIR();
-		instance.numThreads = 1;
+		
+		instance.setNumThreads(1);
 		List<TransposableElementAnnotation> anns = instance.findTransposons(genome);
 		try (PrintStream out=new PrintStream(args[1])) {
 			for(TransposableElementAnnotation ann:anns) {

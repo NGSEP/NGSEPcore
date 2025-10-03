@@ -128,7 +128,7 @@ public class HMMTransposonDomainsFinder {
 		for(Map.Entry<Integer, String> orf:orfs.entrySet()) {
 			int startDNA = orf.getKey();
 			String aaSeq = orf.getValue();
-			//System.out.println("Testing orf at start: "+startDNA+" Seq len: "+aaSeq.length()+" seq: "+aaSeq+ " reverse: "+reverse+" numHMMS: "+hmms.size());
+			//if(aaSeq.length()>1000) System.err.println("Testing orf at start: "+startDNA+" Seq len: "+aaSeq.length()+" seq: "+aaSeq+ " reverse: "+reverse+" numHMMS: "+hmms.size());
 			for (ProfileAlignmentHMM hmm :hmms) {
 				//System.out.println("Testing orf at start: "+startDNA+" Next HMM: "+hmm.getId()+" code "+hmm.getDomainCode()+ " length "+ hmm.getSteps());
 				ProfileAlignmentDomain aaDomain = hmm.findDomain(aaSeq);

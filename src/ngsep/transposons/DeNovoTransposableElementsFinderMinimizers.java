@@ -18,7 +18,7 @@ import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 
-public class DeNovoTransposableElementsFinderConservedEnds implements DeNovoTransposableElementsFinder {
+public class DeNovoTransposableElementsFinderMinimizers implements DeNovoTransposableElementsFinder {
 
 	// Logging and progress
 	private Logger log = Logger.getAnonymousLogger();
@@ -226,7 +226,7 @@ public class DeNovoTransposableElementsFinderConservedEnds implements DeNovoTran
 
 	public static void main(String[] args) throws Exception {
 		ReferenceGenome genome = new ReferenceGenome(args[0]);
-		DeNovoTransposableElementsFinderConservedEnds instance = new DeNovoTransposableElementsFinderConservedEnds();
+		DeNovoTransposableElementsFinderMinimizers instance = new DeNovoTransposableElementsFinderMinimizers();
 		instance.numThreads = 1;
 		instance.filterOrder = null;
 		List<TransposableElementAnnotation> anns = instance.findTransposons(genome);
