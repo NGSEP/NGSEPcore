@@ -216,7 +216,7 @@ public class TransposableElementsFinder {
 		List<TransposableElementAnnotation> deNovoAnn = new ArrayList<TransposableElementAnnotation>();
 		if(transposonsDatabaseFile!=null) knownElements.addAll(loadKnownTransposons());
 		if(runDeNovo) {
-			DeNovoTransposableElementsFinderMinimizers deNovoFinder = new DeNovoTransposableElementsFinderMinimizers();
+			DeNovoTransposableElementsFinderLTR deNovoFinder = new DeNovoTransposableElementsFinderLTR();
 			deNovoFinder.setLog(log);
 			deNovoFinder.setProgressNotifier(progressNotifier);
 			deNovoFinder.setNumThreads(numThreads);

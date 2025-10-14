@@ -45,6 +45,7 @@ import ngsep.transcriptome.ProteinTranslator;
  */
 public class HMMTransposonDomainsFinder {
 	private List<ProfileAlignmentHMM> hmms = new ArrayList<ProfileAlignmentHMM>();
+	private int debugLength = -1;
 	
 	public void loadHMMsFromClasspath( ) {
 		loadHMMsFromClasspath(null);
@@ -107,6 +108,7 @@ public class HMMTransposonDomainsFinder {
 		if(domains.size()==0) return;
 		if(domains.get(0).isReverse()) {
 			Collections.reverse(domains);
+			//TODO: Strand
 		}
 		te.setDomainAlns(domains);
 		te.setFamily(TransposableElementFamily.matchFamily(domains));
@@ -114,12 +116,15 @@ public class HMMTransposonDomainsFinder {
 	public List<TransposonDomainAlignment> findDomains(DNAMaskedSequence dnaSequence) {
 		List<TransposonDomainAlignment> answer = new ArrayList<TransposonDomainAlignment>();
 		DNAMaskedSequence seqForward = dnaSequence;
-		//System.out.println("Forward orfs: "+orfsForward.size()+" Reverse orfs: "+orfsReverse.size());
 		List<TransposonDomainAlignment> domainsForward = findDomainsFromORFs(seqForward, false);
 		DNAMaskedSequence seqReverse = seqForward.getReverseComplement();
 		List<TransposonDomainAlignment> domainsReverse = findDomainsFromORFs(seqReverse, true);
-		answer = selectStrand(domainsForward,domainsReverse);
-		return sortAndFilterDomains(answer);
+		if(dnaSequence.length()==debugLength) System.err.println("Forward domains: "+domainsForward+" Reverse orfs: "+domainsReverse);
+		answer = selectStrand(domainsForward,domainsReverse,dnaSequence.length()==debugLength);
+		//if(answer == domainsReverse) {
+			//for(TransposonDomainAlignment aln:answer) aln.setReverse(true);
+		//}
+		return answer;
 	}
 	
 	private List<TransposonDomainAlignment> findDomainsFromORFs(DNAMaskedSequence dnaSequence, boolean reverse) {
@@ -139,7 +144,7 @@ public class HMMTransposonDomainsFinder {
 				}
 			}
 		}
-		return answer;
+		return sortAndFilterDomains(answer);
 	}
 	private Map<Integer, String> calculateORFs(CharSequence seq) {
 		Map<Integer, String> answer = new LinkedHashMap<Integer, String>();
@@ -201,9 +206,11 @@ public class HMMTransposonDomainsFinder {
 		domain.setReverse(reverseStrand);
 		return domain;
 	}
-	private List<TransposonDomainAlignment> selectStrand(List<TransposonDomainAlignment> domainsForward, List<TransposonDomainAlignment> domainsReverse) {
+	private List<TransposonDomainAlignment> selectStrand(List<TransposonDomainAlignment> domainsForward, List<TransposonDomainAlignment> domainsReverse, boolean debug) {
 		double scoreF = calculateScore(domainsForward);
+		if(debug) System.err.println("Domains forward: "+domainsForward.size()+" score: "+scoreF);
 		double scoreR = calculateScore(domainsReverse);
+		if(debug) System.err.println("Domains reverse: "+domainsReverse.size()+" score: "+scoreR);
 		if(scoreF>scoreR) return domainsForward;
 		return domainsReverse;
 	}

@@ -20,8 +20,8 @@ public class DeNovoTransposableElementsFinderWindowSearch implements DeNovoTrans
 	private Logger log = Logger.getAnonymousLogger();
 	private ProgressNotifier progressNotifier=null;
 	
-	private int windowLength = 15000;
-	private int step = 8000;
+	private int windowLength = 20000;
+	private int step = 5000;
 	private int kmerLength = 11;
 	private int numThreads = 1;
 	
@@ -77,8 +77,8 @@ public class DeNovoTransposableElementsFinderWindowSearch implements DeNovoTrans
 		return answer;
 	}
 	public List<TransposableElementAnnotation> findTransposons(QualifiedSequence seq) {
-		ThreadPoolManager pool = new ThreadPoolManager(numThreads, numThreads);
-		pool.setSecondsPerTask(1);
+		ThreadPoolManager pool = new ThreadPoolManager(numThreads, 1000);
+		pool.setSecondsPerTask(10);
 		List<List<TransposableElementAnnotation>> answP = new ArrayList<List<TransposableElementAnnotation>>();
 		int nL = seq.getLength();
 		for(int i=0;i<nL;i+=step) {

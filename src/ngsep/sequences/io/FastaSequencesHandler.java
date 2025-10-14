@@ -116,18 +116,21 @@ public class FastaSequencesHandler {
 	 */
 	public void saveSequences(List<QualifiedSequence> sequences, PrintStream out,int lineLength) {
 		for(QualifiedSequence seq: sequences) {
-			out.print(">");
-			out.print(seq.getName());
-			if(seq.getComments()!=null) {
-				out.print(" ");
-				out.print(seq.getComments());
-			}
-			out.println();
-			CharSequence characters = seq.getCharacters();
-			int l = characters.length();
-			for(int j=0;j<l;j+=lineLength) {
-				out.println(characters.subSequence(j, Math.min(l, j+lineLength)));
-			}
+			saveSequence(seq, out, lineLength);
+		}
+	}
+	public void saveSequence(QualifiedSequence seq, PrintStream out, int lineLength) {
+		out.print(">");
+		out.print(seq.getName());
+		if(seq.getComments()!=null) {
+			out.print(" ");
+			out.print(seq.getComments());
+		}
+		out.println();
+		CharSequence characters = seq.getCharacters();
+		int l = characters.length();
+		for(int j=0;j<l;j+=lineLength) {
+			out.println(characters.subSequence(j, Math.min(l, j+lineLength)));
 		}
 	}
 }

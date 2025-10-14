@@ -59,4 +59,7 @@ public class TransposonDomainAlignment {
 	public String getDomainCode() {
 		return alnDomain.getDomainCode();
 	}
+	public String toString() {
+		return getDomainCode()+"_"+start+"_"+end+"_"+getEvalue();
+	}
 }

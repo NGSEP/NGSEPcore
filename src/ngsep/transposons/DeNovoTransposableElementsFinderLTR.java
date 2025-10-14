@@ -18,10 +18,15 @@ import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.UngappedSearchHit;
+import ngsep.sequences.io.FastaSequencesHandler;
 
 public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableElementsFinderWindowSearch {
 	private TransposableElementFamily filterOrder = TransposableElementFamily.LTR_UNKNOWN;
+	//private TransposableElementFamily filterOrder = null;
+	private String filterDomainCode = "GAG";
 	private HMMTransposonDomainsFinder baseFinder;
+	
+	private int debugPos = -1;
 	
 	public DeNovoTransposableElementsFinderLTR () {
 		baseFinder = new HMMTransposonDomainsFinder();
@@ -32,7 +37,8 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 		domainsLTR.add("ENV");
 		domainsLTR.add("RNASEH");
 		domainsLTR.add("RT");
-		
+		domainsLTR.add("END");
+		domainsLTR.add("RH");
 		baseFinder.loadHMMsFromClasspath(domainsLTR);
 	}
 	
@@ -71,16 +77,20 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 		List<UngappedSearchHitsCluster> clusters = builder.clusterRegionKmerAlns(step,0, windowLength, hits);
 		if(clusters.size()==0) return answer;
 		log.info("Processing sequence. "+seq.getName()+" from "+start+" to "+end+" total hits: "+hits.size()+" total clusters: "+clusters.size());
-		PairwiseAlignerSimpleGap pwa = new PairwiseAlignerSimpleGap(2000);
+		PairwiseAlignerSimpleGap pwa = new PairwiseAlignerSimpleGap(3000);
 		pwa.setForceEnd1(false);
 		pwa.setForceEnd2(false);
-		HMMTransposonDomainsFinder domainsFinder = baseFinder.clone();
+		
+		
+		HMMTransposonDomainsFinder domainsFinder = null;
 		Collections.sort(clusters,(c1,c2)->c2.getCountKmerHitsCluster()-c1.getCountKmerHitsCluster());
 		for(UngappedSearchHitsCluster cluster:clusters) {
 			TransposableElementAnnotation ltrAnn = inferTEFromEndAlignment(seq, start, segmentDNA, cluster, pwa);
 			if(ltrAnn==null) continue;
 			//Assign family
+			if(domainsFinder==null) domainsFinder = baseFinder.clone();
 			assignFamily(ltrAnn, seq, domainsFinder);
+			if (start==debugPos) System.err.println("Assigned family for annotation at "+ltrAnn.getFirst()+" "+ltrAnn.getLast()+" inferred family: "+ltrAnn.getInferredFamily());
 			if(passFilters(ltrAnn)) answer.add(ltrAnn);
 		}
 		//TODO: Discard possible hits due to tandem repeats
@@ -89,46 +99,56 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 	
 
 	private TransposableElementAnnotation inferTEFromEndAlignment(QualifiedSequence seq, int start, String segmentDNA, UngappedSearchHitsCluster cluster, PairwiseAlignerSimpleGap pwa) {
-		System.err.println("Checking hit of sequence. Start: "+start);
+		if (start==debugPos) System.err.println("Checking hit of sequence. Start: "+start);
 		//Find start alignment before hit
 		int evidenceStart1 = start + cluster.getQueryEvidenceStart();
 		int evidenceEnd1 = start + cluster.getQueryEvidenceEnd();
 		int evidenceStart2 = start + cluster.getSubjectEvidenceStart();
 		int evidenceEnd2 = start + cluster.getSubjectEvidenceEnd();
+		int evidenceLength1 = evidenceEnd1-evidenceStart1;
+		int evidenceLength2 = evidenceEnd2-evidenceStart2;
 		
+		int ltrEstimatedLength = Math.min(evidenceLength1, evidenceLength2);
+		ltrEstimatedLength = Math.min(ltrEstimatedLength, 5000);
 		
+		if (start==debugPos) System.err.println("Checking hit of sequence. Start: "+start+" LTR length: "+ltrEstimatedLength+ " ev1: "+evidenceStart1+" "+ evidenceEnd1+" ev2: "+evidenceStart2+" "+evidenceEnd2);
+		if(evidenceStart2 - evidenceEnd1 <500) return null;
 		DNAMaskedSequence dna = (DNAMaskedSequence) seq.getCharacters();
 		DNAMaskedSequence leftSegment = ((DNAMaskedSequence)dna.subSequence(Math.max(0, evidenceStart1-300), evidenceStart1)).getReverseComplement();
 		DNAMaskedSequence rightSegment = ((DNAMaskedSequence)dna.subSequence(Math.max(0, evidenceStart2-300), evidenceStart2)).getReverseComplement();
 		
 		
 		PairwiseAlignment alnBeforeHit = pwa.calculateAlignment(leftSegment, rightSegment);
+		//TODO: Alignment quality
+		
 		int start2 = Math.max(0, evidenceStart1 - alnBeforeHit.getEnd1());
 		int internalRight = Math.max(0, evidenceStart2-alnBeforeHit.getEnd2());
 		
+		if (start==debugPos) System.err.println("Checking hit of sequence. Start: "+start+" endsAlnBefore: "+alnBeforeHit.getEnd1()+" "+alnBeforeHit.getEnd2()+" mismatches: "+alnBeforeHit.getMismatches()+" Left aln limits: "+start2+ " "+internalRight);
+		
 		//Find end alignment after hit
-		leftSegment = (DNAMaskedSequence)dna.subSequence(evidenceStart1, Math.min(seq.getLength(), evidenceStart1+2000));
-		rightSegment = (DNAMaskedSequence)dna.subSequence(evidenceStart2, Math.min(seq.getLength(), evidenceStart2+2000));
+		leftSegment = (DNAMaskedSequence)dna.subSequence(evidenceStart1, Math.min(seq.getLength(), evidenceStart1+ltrEstimatedLength));
+		rightSegment = (DNAMaskedSequence)dna.subSequence(evidenceStart2, Math.min(seq.getLength(), evidenceStart2+ltrEstimatedLength));
 		PairwiseAlignment alnAfterHit = pwa.calculateAlignment(leftSegment, rightSegment);
 		int internalLeft = evidenceStart1+alnAfterHit.getEnd1();
 		int end2 = Math.min(seq.getLength(), evidenceStart2+alnAfterHit.getEnd2());
+		if (start==debugPos) System.err.println("Checking hit of sequence. Start: "+start+" endsAlnAfter: "+alnAfterHit.getEnd1()+" "+alnAfterHit.getEnd2()+" mismatches: "+alnAfterHit.getMismatches()+" Right aln limits: "+internalLeft+ " "+end2);
+		//TODO: Check alignment quality
+		if(alnAfterHit.getMismatches()>0.25*ltrEstimatedLength) return null;
+		if(internalLeft-start2<50) return null;
 		
-		System.err.println("Checked borders. Start: "+start2+" internal left "+internalLeft+" internal right: "+internalRight+" end "+end2);
-		if(internalLeft<evidenceEnd1) return null;
-		if(internalRight<=internalLeft) return null;
-		if(end2 < evidenceEnd2) return null;
+		if (start==debugPos) System.err.println("Checked borders. Start: "+start2+" internal left "+internalLeft+" internal right: "+internalRight+" end "+end2+" Mismatches: "+alnBeforeHit.getMismatches()+" "+alnAfterHit.getMismatches());
+		if(internalRight-internalLeft<500) return null;
 		//Create annotation
 		TransposableElementAnnotation ann = new TransposableElementAnnotation(seq.getName(), start2+1, end2);
 		ann.setRepeatLimits(internalLeft+1, internalRight+1, TransposableElementFamily.REPEAT_ORIENTATION_FF);
+		if (start==debugPos) System.err.println("Created annotation at "+ann.getFirst()+" "+ann.getLast());
 		return ann;
 	}
 	private void assignFamily(TransposableElementAnnotation ann, QualifiedSequence seq, HMMTransposonDomainsFinder domainsFinder) {
 		DNAMaskedSequence dnaTE = (DNAMaskedSequence) seq.getCharacters().subSequence(ann.getLeftEndRepeat()-1, ann.getRightStartRepeat());
+		System.err.println("Verifying family for TE at "+ann.getFirst()+" "+ann.getLast()+" internal: "+ann.getLeftEndRepeat()+" "+ann.getRightStartRepeat()+" seq len: "+dnaTE.length());
 		domainsFinder.assignFamily(ann,dnaTE);
-		if(ann.getInferredFamily()==null) {
-			domainsFinder.assignFamily(ann,dnaTE.getReverseComplement());
-			if(ann.getInferredFamily()!=null) ann.setNegativeStrand(true);
-		}
 	}
 	
 	
@@ -138,15 +158,26 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 			TransposableElementFamily family = ann.getInferredFamily();
 			if(family==null || !family.getOrder().equals(filterOrder.getOrder())) return false;
 		}
+		if(filterDomainCode!=null) {
+			boolean found = false;
+			for(TransposonDomainAlignment aln: ann.getDomainAlignments()) {
+				if(filterDomainCode.equals(aln.getDomainCode())) {
+					found = true;
+					break;
+				}
+			}
+			if(!found) return false;
+		}
 		return true;
 	}
 
 	public static void main(String[] args) throws Exception {
 		ReferenceGenome genome = new ReferenceGenome(args[0]);
+		String outPrefix = args[1];
 		DeNovoTransposableElementsFinderWindowSearch instance = new DeNovoTransposableElementsFinderLTR();
 		instance.setNumThreads(8);
 		List<TransposableElementAnnotation> anns = instance.findTransposons(genome);
-		try (PrintStream out=new PrintStream(args[1])) {
+		try (PrintStream out=new PrintStream(outPrefix+"_regions.txt")) {
 			for(TransposableElementAnnotation ann:anns) {
 				out.print(""+ann.getSequenceName()+"\t"+ann.getFirst()+"\t"+ann.getLast()+"\t"+ann.isPositiveStrand()+"\t"+ann.getInferredFamily()+"\t"+ann.getLeftEndRepeat()+"\t"+ann.getRightStartRepeat()+"\t"+ann.getOrientation());
 				if(ann.getDomainAlignments()!=null && ann.getDomainAlignments().size()>0) {
@@ -157,7 +188,16 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 				}
 				out.println();
 			}
-		}	
+		}
+		FastaSequencesHandler handler = new FastaSequencesHandler();
+		try (PrintStream out=new PrintStream(outPrefix+"_sequences.fa")) {
+			for(TransposableElementAnnotation ann:anns) {
+				CharSequence seq = genome.getReference(ann);
+				if(ann.isNegativeStrand()) seq = DNAMaskedSequence.getReverseComplement(seq);
+				QualifiedSequence qseq = new QualifiedSequence(""+ann.getSequenceName()+"_"+ann.getFirst()+"_"+ann.getLast()+"_"+ann.isPositiveStrand()+"#"+ann.getInferredFamily(),seq);
+				handler.saveSequence(qseq, out, 100);
+			}
+		}
 	}
 
 }
