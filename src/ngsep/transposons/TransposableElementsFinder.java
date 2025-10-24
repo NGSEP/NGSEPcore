@@ -65,7 +65,7 @@ public class TransposableElementsFinder {
 	
 	// Parameters 
 	private String inputFile = null;
-	private String outputFile = null;
+	private String outputPrefix = null;
 	private String transposonsDatabaseFile = null;
 	private int minTELength = DEF_MIN_TE_LENGTH;
 	private int rounds = DEF_ROUNDS;
@@ -102,11 +102,12 @@ public class TransposableElementsFinder {
 	public void setInputFile(String inputFile) {
 		this.inputFile = inputFile;
 	}
-	public String getOutputFile() {
-		return outputFile;
+	
+	public String getOutputPrefix() {
+		return outputPrefix;
 	}
-	public void setOutputFile(String outputFile) {
-		this.outputFile = outputFile;
+	public void setOutputPrefix(String outputPrefix) {
+		this.outputPrefix = outputPrefix;
 	}
 	public String getTransposonsDatabaseFile() {
 		return transposonsDatabaseFile;
@@ -184,11 +185,11 @@ public class TransposableElementsFinder {
 		long time = System.currentTimeMillis();
 		logParameters ();
 		if(inputFile==null) throw new IOException("The input genome is a required parameter");
-		if(outputFile==null) throw new IOException("The output file is a required parameter");
-		if(transposonsDatabaseFile==null) throw new IOException("The transposons database file is a required parameter");
+		if(outputPrefix==null) throw new IOException("The output file is a required parameter");
+		if(!runDeNovo && transposonsDatabaseFile==null) throw new IOException("The transposons database file is a required parameter unless the deNovo discovery is activated");
 		ReferenceGenome genome = new ReferenceGenome(inputFile);
 		List<TransposableElementAnnotation> transposonAnnotations = findTransposons(genome);
-		saveTransposonAnnotations(transposonAnnotations,outputFile);
+		saveTransposonAnnotations(transposonAnnotations,outputPrefix+"_regions.txt");
 		double seconds = (System.currentTimeMillis()-time);
 		seconds /=1000;
 		log.info("Process finished in "+seconds+" seconds");
@@ -197,7 +198,7 @@ public class TransposableElementsFinder {
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
 		PrintStream out = new PrintStream(os);
 		out.println("Input file:"+ inputFile);
-		out.println("Output file:"+ outputFile);
+		out.println("Output prefix:"+ outputPrefix);
 		if(transposonsDatabaseFile!=null) out.println("Database of transposable elements: "+ transposonsDatabaseFile);
 		out.println("Minimum TE length: "+minTELength);
 		out.println("Number of search rounds: "+rounds);
@@ -221,7 +222,9 @@ public class TransposableElementsFinder {
 			deNovoFinder.setProgressNotifier(progressNotifier);
 			deNovoFinder.setNumThreads(numThreads);
 			deNovoAnn = deNovoFinder.findTransposons(genome);
-			knownElements.addAll(extractTEs(genome, deNovoAnn));
+			List<TransposableElement> ltrs = extractTEs(genome, deNovoAnn);
+			knownElements.addAll(ltrs);
+			(new TransposableElementLibraryHandler()).save(ltrs, outputPrefix+"_conservedTEs.fa");
 		}
 		return findTransposonsBySimilarity(genome,knownElements,deNovoAnn);
 	}
@@ -297,6 +300,7 @@ public class TransposableElementsFinder {
 			if(ann.isNegativeStrand()) sequence = DNAMaskedSequence.getReverseComplement(sequence);
 			String name = ann.getSequenceName()+"_"+ann.getFirst()+"_"+ann.getLast()+"_"+(ann.isNegativeStrand()?'N':'P');
 			if(ann.getTaxonomy()!=null) name = name+"#"+ann.getTaxonomy();
+			else if (ann.getInferredFamily()!=null) name = name+"#"+ann.getInferredFamily();
 			TransposableElement te = new TransposableElement(name,sequence);
 			if(ann.getInferredFamily()!=null) te.setFamily(ann.getInferredFamily());
 			else te.setFamily(ann.getSourceFamily());

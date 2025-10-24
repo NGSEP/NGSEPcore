@@ -1195,14 +1195,16 @@ Annotates transposable elements in a genome assembly
 </intro>
 <title>Identifying transposable elements</title>
 <description>
-Receives a genome assembly in fasta format and a file with known transposable elements (TEs) and annotates regions
-in the assembly with TEs.
+Receives a genome assembly in fasta format and annotates regions in the assembly with TEs.
+It can receive a file with known transposable elements (TEs) or it can find TEs deNovo.
+The output is a file with regions of the genome annotated with transposons.
+If the deNovo option is activated, it also generates a fasta file with the TE sequences.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input genome to annotate in fasta format. It can be gzip compressed.
 </option>
-<option id="o" type="FILE" attribute="outputFile">
-Output file with annotations of transposable elements
+<option id="o" type="FILE" attribute="outputPrefix">
+Prefix of the output files.
 </option>
 <option id="d" type="FILE" attribute="transposonsDatabaseFile">
 Database of transposable elements to annotate the genome
