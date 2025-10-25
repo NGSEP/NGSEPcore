@@ -58,7 +58,7 @@ public class TransposableElementsFinder {
 	private ProgressNotifier progressNotifier=null;
 	
 	public static final int DEF_MIN_TE_LENGTH = 200;
-	public static final int DEF_ROUNDS = 2;
+	public static final int DEF_ROUNDS = 1;
 	public static final int DEF_LIMIT_GENOME_LENGTH = 0;
 	public static final int DEF_NUM_THREADS = 1;
 	
@@ -305,6 +305,8 @@ public class TransposableElementsFinder {
 			if(ann.getInferredFamily()!=null) te.setFamily(ann.getInferredFamily());
 			else te.setFamily(ann.getSourceFamily());
 			te.setRepeatLimits(ann.getLeftEndRepeat()-ann.getFirst(), ann.getRightStartRepeat()-ann.getFirst() , ann.getOrientation());
+			te.setDomainAlignments(ann.getDomainAlignments());
+			te.setTsd(ann.getTsd());
 			sequences.add(te);
 		}
 		return sequences;
@@ -540,7 +542,7 @@ public class TransposableElementsFinder {
 				outTransposon.print("\t"+t.getFirst());
 				outTransposon.print("\t"+t.getLast()+"\t");
 				outTransposon.print("\t"+(t.isNegativeStrand()?"-":"+"));
-				outTransposon.print("\t"+t.getQueryName());
+				outTransposon.print("\t"+(t.getQueryName()!=null?t.getQueryName():"DeNovo"));
 				outTransposon.print("\t"+(t.getTaxonomy()!=null?t.getTaxonomy():"NA"));
 				outTransposon.print("\t"+(t.getSourceFamily()!=null?t.getSourceFamily():"NA"));
 				outTransposon.print("\t"+(t.getInferredFamily()!=null?t.getInferredFamily():"NA"));

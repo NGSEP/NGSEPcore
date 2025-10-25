@@ -27,6 +27,7 @@ import java.util.List;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.transposons.TransposableElement;
+import ngsep.transposons.TransposonDomainAlignment;
 
 /**
  * @author Jorge Duitama
@@ -53,6 +54,17 @@ public class TransposableElementLibraryHandler {
 		List<QualifiedSequence> sequences = new ArrayList<QualifiedSequence>();
 		for(TransposableElement te:tes) {
 			QualifiedSequence seq = new QualifiedSequence(te.getId(),te.getSequence());
+			StringBuilder comments = new StringBuilder();
+			comments.append("LER="+te.getLeftEndRepeat());
+			comments.append(";RSR="+te.getRightStartRepeat());
+			if(te.getTsd()!=null) comments.append(";TSD="+te.getTsd());
+			List<TransposonDomainAlignment> alns = te.getDomainAlignments();
+			if(alns!=null && alns.size()>0) {
+				for(TransposonDomainAlignment daln:alns) {
+					comments.append(";"+daln.getDomainCode()+":"+daln.getStart()+":"+daln.getEvalue());
+				}
+			}
+			seq.setComments(comments.toString());
 			sequences.add(seq);
 		}
 		try(PrintStream out = new PrintStream(outputFile)) {

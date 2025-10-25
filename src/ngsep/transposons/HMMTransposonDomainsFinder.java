@@ -44,7 +44,7 @@ import ngsep.transcriptome.ProteinTranslator;
  * @author Jorge Duitama
  */
 public class HMMTransposonDomainsFinder {
-	public static final double DEFAULT_ALPHA = 0.0000000001;
+	public static final double DEFAULT_ALPHA = 0.000000001;
 	private List<ProfileAlignmentHMM> hmms = new ArrayList<ProfileAlignmentHMM>();
 	private int debugLength = -1;
 	private double alpha = DEFAULT_ALPHA;
@@ -117,7 +117,7 @@ public class HMMTransposonDomainsFinder {
 			Collections.reverse(domains);
 			//TODO: Strand
 		}
-		te.setDomainAlns(domains);
+		te.setDomainAlignments(domains);
 		te.setFamily(TransposableElementFamily.matchFamily(domains));
 	}
 	public List<TransposonDomainAlignment> findDomains(DNAMaskedSequence dnaSequence) {

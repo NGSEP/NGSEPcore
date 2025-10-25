@@ -12,10 +12,11 @@ public class TransposableElement {
 	private CharSequence sequence;
 	private TransposableElementFamily family;
 	private String taxonomy;
-	private List<TransposonDomainAlignment> domainAlns;
+	private List<TransposonDomainAlignment> domainAlignments;
 	private int leftEndRepeat = -1;
 	private int rightStartRepeat = -1;
 	private byte orientation = -1;
+	private String tsd = null;
 	private static final int ENDS_LENGTH_ALIGNMENT = 1200;
 	
 	public TransposableElement(String id, CharSequence sequence) {
@@ -44,14 +45,12 @@ public class TransposableElement {
 		return sequence;
 	}
 	
-	public List<TransposonDomainAlignment> getDomainAlns() {
-		return domainAlns;
+	public List<TransposonDomainAlignment> getDomainAlignments() {
+		return domainAlignments;
 	}
-	public void setDomainAlns(List<TransposonDomainAlignment> domainAlns) {
-		this.domainAlns = domainAlns;
+	public void setDomainAlignments(List<TransposonDomainAlignment> domainAlignments) {
+		this.domainAlignments = domainAlignments;
 	}
-	
-	
 	public int getLeftEndRepeat() {
 		return leftEndRepeat;
 	}
@@ -67,6 +66,12 @@ public class TransposableElement {
 		this.orientation = orientation;
 	}
 	
+	public String getTsd() {
+		return tsd;
+	}
+	public void setTsd(String tsd) {
+		this.tsd = tsd;
+	}
 	public boolean isValidated() {
 		return leftEndRepeat>0 && getFamily()!=null;
 	}

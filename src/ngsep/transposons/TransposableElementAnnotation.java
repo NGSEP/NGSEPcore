@@ -112,7 +112,9 @@ public class TransposableElementAnnotation implements GenomicRegion {
 	}
 
 	public String getTaxonomy() {
-		return source!=null?source.getTaxonomy():null;
+		if(source!=null) return source.getTaxonomy();
+		if(inferredFamily!=null) return inferredFamily.toString();
+		return null;
 	}
 	public int getCount() {
 		return count;

@@ -181,10 +181,10 @@ public class TransposableElementLibraryFilter {
 			te.modifyIdFromFamily();
 		}
 		TransposableElement answer = te;
-		if(te.getDomainAlns()!=null && te.getDomainAlns().get(0).isReverse()) {
+		if(te.getDomainAlignments()!=null && te.getDomainAlignments().get(0).isReverse()) {
 			TransposableElement revElem = new TransposableElement(te.getId(), DNAMaskedSequence.getReverseComplement(te.getSequence()));
 			revElem.setFamily(newFamily);
-			revElem.setDomainAlns(te.getDomainAlns());
+			revElem.setDomainAlignments(te.getDomainAlignments());
 			answer = revElem;
 		}
 		
