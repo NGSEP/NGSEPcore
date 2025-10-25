@@ -90,6 +90,7 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 			//Assign family
 			if(domainsFinder==null) domainsFinder = baseFinder.clone();
 			assignFamily(ltrAnn, seq, domainsFinder);
+			findTargetSideDuplication(ltrAnn, seq);
 			if (start==debugPos) System.err.println("Assigned family for annotation at "+ltrAnn.getFirst()+" "+ltrAnn.getLast()+" inferred family: "+ltrAnn.getInferredFamily());
 			if(passFilters(ltrAnn)) answer.add(ltrAnn);
 		}
@@ -97,6 +98,47 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 		return answer;
 	}
 	
+
+	
+
+	private void findTargetSideDuplication(TransposableElementAnnotation ltrAnn, QualifiedSequence seq) {
+		CharSequence dna = seq.getCharacters();
+		int refStartLeft = Math.max(1,ltrAnn.getFirst()-20);
+		int refStartRight = ltrAnn.getLast()-5;
+		int refEndRight = Math.min(dna.length(),ltrAnn.getLast()+20);
+		String leftSegment = dna.subSequence(refStartLeft-1, ltrAnn.getFirst()+5).toString();
+		String rightSegment = dna.subSequence(refStartRight-1, refEndRight).toString();
+		int tsdMinLength = 6;
+		int k =4;
+		int tsdStartLeft = -1;
+		int tsdStartRight = -1;
+		String tsd= null;
+		for(int i=0;i<=rightSegment.length()-k;i++) {
+			String kmer = rightSegment.substring(i,i+k);
+			int idxL = leftSegment.indexOf(kmer);
+			if(idxL<0) continue;
+			int l = k;
+			int j1 = idxL+k;
+			int j2 = i+k;
+			while(j1<leftSegment.length() && j2<rightSegment.length()) {
+				if(leftSegment.charAt(j1)!=rightSegment.charAt(j2)) break;
+				j1++;
+				j2++;
+				l++;
+			}
+			if(l>=tsdMinLength) {
+				tsdStartLeft = idxL;
+				tsdStartRight = i;
+				tsd = rightSegment.substring(i,i+l);
+				break;
+			}
+		}
+		if(tsd!=null) {
+			ltrAnn.setFirst(refStartLeft+tsdStartLeft+tsd.length());
+			ltrAnn.setLast(refStartRight+tsdStartRight-1);
+			ltrAnn.setTsd(tsd);
+		}
+	}
 
 	private TransposableElementAnnotation inferTEFromEndAlignment(QualifiedSequence seq, int start, String segmentDNA, UngappedSearchHitsCluster cluster, PairwiseAlignerSimpleGap pwa) {
 		if (start==debugPos) System.err.println("Checking hit of sequence. Start: "+start);
@@ -179,7 +221,7 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 		List<TransposableElementAnnotation> anns = instance.findTransposons(genome);
 		try (PrintStream out=new PrintStream(outPrefix+"_regions.txt")) {
 			for(TransposableElementAnnotation ann:anns) {
-				out.print(""+ann.getSequenceName()+"\t"+ann.getFirst()+"\t"+ann.getLast()+"\t"+ann.isPositiveStrand()+"\t"+ann.getInferredFamily()+"\t"+ann.getLeftEndRepeat()+"\t"+ann.getRightStartRepeat()+"\t"+ann.getOrientation());
+				out.print(""+ann.getSequenceName()+"\t"+ann.getFirst()+"\t"+ann.getLast()+"\t"+ann.isPositiveStrand()+"\t"+ann.getInferredFamily()+"\t"+ann.getLeftEndRepeat()+"\t"+ann.getRightStartRepeat()+"\t"+ann.getOrientation()+"\t"+ann.getTsd());
 				if(ann.getDomainAlignments()!=null && ann.getDomainAlignments().size()>0) {
 					out.print("\t");
 					for(TransposonDomainAlignment daln:ann.getDomainAlignments()) {

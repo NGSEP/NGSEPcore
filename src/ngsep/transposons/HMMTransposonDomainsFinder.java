@@ -44,9 +44,19 @@ import ngsep.transcriptome.ProteinTranslator;
  * @author Jorge Duitama
  */
 public class HMMTransposonDomainsFinder {
+	public static final double DEFAULT_ALPHA = 0.0000000001;
 	private List<ProfileAlignmentHMM> hmms = new ArrayList<ProfileAlignmentHMM>();
 	private int debugLength = -1;
+	private double alpha = DEFAULT_ALPHA;
 	
+	
+	
+	public double getAlpha() {
+		return alpha;
+	}
+	public void setAlpha(double alpha) {
+		this.alpha = alpha;
+	}
 	public void loadHMMsFromClasspath( ) {
 		loadHMMsFromClasspath(null);
 	}
@@ -58,13 +68,10 @@ public class HMMTransposonDomainsFinder {
 			hmmLoader.loadDomainCodes();
 			List<ProfileAlignmentHMM> hmmsFile = hmmLoader.loadHMMs();
 			//for(ProfileAlignmentHMM hmm:hmmsFile) System.out.println("Loaded hmm: "+hmm.getId()+" name: "+hmm.getName()+" domainCode: "+hmm.getDomainCode()+" accepted codes: "+domainCodes);
-			if (domainCodes==null) {
-				hmms.addAll(hmmsFile);
-				return;
-			}
 			for(ProfileAlignmentHMM hmm:hmmsFile) {
-				if(domainCodes.contains(hmm.getDomainCode())) {
+				if(domainCodes==null || domainCodes.contains(hmm.getDomainCode())) {
 					//System.out.println("Adding hmm: "+hmm.getId());
+					hmm.setAlpha(alpha);
 					hmms.add(hmm);
 				}
 			}	

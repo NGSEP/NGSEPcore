@@ -28,6 +28,7 @@ import ngsep.math.LogMath;
  * @author Jorge Duitama
  */
 public class ProfileAlignmentHMM extends AbstractHMM {
+	public static final double DEFAULT_ALPHA = 0.05;
 	private ProfileAlignmentNullModel nullmodel;
 	private String id;
 	private String name;
@@ -40,6 +41,7 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 	private byte [][][] tracebackMatrix;
 	private Double miu;
 	private Double lambda;
+	private double alpha = DEFAULT_ALPHA;
 	
 
 	public ProfileAlignmentHMM(String id , int steps, List<? extends HMMState> states, ProfileAlignmentNullModel nullModel) {
@@ -57,6 +59,7 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 		copy.miu = this.miu;
 		copy.lambda = this.lambda;
 		copy.transitionMatrix = this.transitionMatrix;
+		copy.alpha = alpha;
 		return copy;
 		
 	}
@@ -126,6 +129,16 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 	public Double getTransition(int source, int dest, int step) {
 		// Answer with match probability
 		return transitionMatrix[step][source][dest];
+	}
+	
+	
+
+	public double getAlpha() {
+		return alpha;
+	}
+
+	public void setAlpha(double alpha) {
+		this.alpha = alpha;
 	}
 
 	synchronized public ProfileAlignmentDomain findDomain(String query) {
@@ -398,7 +411,7 @@ public class ProfileAlignmentHMM extends AbstractHMM {
 	}
 	
 	public boolean passFilter (Double evalue) {
-		if (evalue<0.05) {return true;}
+		if (evalue<alpha) {return true;}
 		else {return false;}
 	}
 

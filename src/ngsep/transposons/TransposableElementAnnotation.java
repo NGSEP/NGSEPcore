@@ -35,6 +35,7 @@ public class TransposableElementAnnotation implements GenomicRegion {
 	private List<TransposonDomainAlignment> domainAlignments;
 	private int count = 0;
 	private boolean negativeStrand=false;
+	private String tsd = null;
 	private int leftEndRepeat = -1;
 	private int rightStartRepeat = -1;
 	private byte orientation = -1;
@@ -132,6 +133,14 @@ public class TransposableElementAnnotation implements GenomicRegion {
 		return orientation;
 	}
 	
+	public String getTsd() {
+		return tsd;
+	}
+
+	public void setTsd(String tsd) {
+		this.tsd = tsd;
+	}
+
 	public void setRepeatLimits(int leftEnd, int rightStart, byte orientation) {
 		this.leftEndRepeat = leftEnd;
 		this.rightStartRepeat = rightStart;
