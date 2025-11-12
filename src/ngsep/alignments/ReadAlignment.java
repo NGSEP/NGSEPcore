@@ -118,8 +118,14 @@ public class ReadAlignment implements GenomicRegion {
 	
 	//Optional information stored
 	private String readGroup = DEF_READ_GROUP;
+	private Map<String,Object> unprocessedOptionalInfo =null;
+	
 	private int coverageSharedKmers;
 	private int weightedCoverageSharedKmers;
+	
+	//Phase assignment
+	private int haplotypeBlock = -1; 
+	private byte phaseAssignment = 0;
 	
 	/**
 	 * Creates a read alignment with the given information
@@ -711,6 +717,14 @@ public class ReadAlignment implements GenomicRegion {
 		this.numMismatches = numMismatches;
 	}
 	
+	public Map<String, Object> getUnprocessedOptionalInfo() {
+		return unprocessedOptionalInfo;
+	}
+
+	public void setUnprocessedOptionalInfo(Map<String, Object> unprocessedOptionalInfo) {
+		this.unprocessedOptionalInfo = unprocessedOptionalInfo;
+	}
+
 	public int getCoverageSharedKmers() {
 		return coverageSharedKmers;
 	}
@@ -725,6 +739,22 @@ public class ReadAlignment implements GenomicRegion {
 
 	public void setWeightedCoverageSharedKmers(int weightedCoverageSharedKmers) {
 		this.weightedCoverageSharedKmers = weightedCoverageSharedKmers;
+	}
+
+	public int getHaplotypeBlock() {
+		return haplotypeBlock;
+	}
+
+	public void setHaplotypeBlock(int haplotypeBlock) {
+		this.haplotypeBlock = haplotypeBlock;
+	}
+
+	public byte getPhaseAssignment() {
+		return phaseAssignment;
+	}
+
+	public void setPhaseAssignment(byte phaseAssignment) {
+		this.phaseAssignment = phaseAssignment;
 	}
 
 	/**

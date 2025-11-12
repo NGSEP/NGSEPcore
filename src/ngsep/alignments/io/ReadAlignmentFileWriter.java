@@ -22,6 +22,7 @@ package ngsep.alignments.io;
 import java.io.Closeable;
 import java.io.PrintStream;
 import java.util.List;
+import java.util.Map;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
@@ -97,7 +98,23 @@ public class ReadAlignmentFileWriter implements Closeable {
 		
 		//Read group
 		samRecord.setAttribute(SAMTag.RG.toString(), sampleId);
+		
+		//Mismatches
 		samRecord.setAttribute(SAMTag.NM.toString(), Integer.valueOf(readAlignment.getNumMismatches()));
+		
+		//Phasing info
+		if(readAlignment.getHaplotypeBlock()>=0) {
+			samRecord.setAttribute(ReadAlignmentFileReader.ATTRIBUTE_HAPLOTYPE_BLOCK, Integer.valueOf(readAlignment.getHaplotypeBlock()));
+			samRecord.setAttribute(ReadAlignmentFileReader.ATTRIBUTE_PHASE_ASSIGNMENT, Integer.valueOf(readAlignment.getPhaseAssignment()));
+		}
+		
+		//Unprocessed optional info
+		Map<String,Object> unproccesedInfo = readAlignment.getUnprocessedOptionalInfo();
+		if(unproccesedInfo!=null) {
+			for(Map.Entry<String, Object> entry:unproccesedInfo.entrySet()) {
+				samRecord.setAttribute(entry.getKey(), entry.getValue());
+			}
+		}
 		
 		//System.out.println("Bases: "+samRecord.getReadString()+" qual: "+samRecord.getBaseQualityString());
 		List<SAMValidationError> errors= samRecord.isValid();

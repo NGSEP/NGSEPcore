@@ -26,15 +26,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecord.SAMTagAndValue;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -55,8 +59,9 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	public static final int LOAD_MODE_ALIGNMENT_SEQUENCE = 4;
 	public static final int LOAD_MODE_FULL = 5;
 	
-	
-	private static final String ATTRIBUTE_NUMALNS="NH";
+	public static final String ATTRIBUTE_NUMALNS="NH";
+	public static final String ATTRIBUTE_HAPLOTYPE_BLOCK="PS";
+	public static final String ATTRIBUTE_PHASE_ASSIGNMENT="HP";
 	
 	private Logger log = Logger.getLogger(ReadAlignmentFileReader.class.getName());
 	
@@ -71,10 +76,20 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	
 	private int requiredFlags = 0;
 	private int filterFlags = 0;
-	//TODO: Change to false by default
 	private int loadMode = LOAD_MODE_FULL;
 	private boolean validateHeader = true;
 	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
+	
+	private static Set<String> PROCESSED_OPTIONAL_ATTRIBUTES;
+	
+	static {
+		PROCESSED_OPTIONAL_ATTRIBUTES = new HashSet<String>();
+		PROCESSED_OPTIONAL_ATTRIBUTES.add(SAMTag.RG.toString());
+		PROCESSED_OPTIONAL_ATTRIBUTES.add(SAMTag.NM.toString());
+		PROCESSED_OPTIONAL_ATTRIBUTES.add(ATTRIBUTE_NUMALNS);
+		PROCESSED_OPTIONAL_ATTRIBUTES.add(ATTRIBUTE_HAPLOTYPE_BLOCK);
+		PROCESSED_OPTIONAL_ATTRIBUTES.add(ATTRIBUTE_PHASE_ASSIGNMENT);
+	}
 	
 	public ReadAlignmentFileReader (String filename) throws IOException {
 		init(null,new File(filename),null);
@@ -268,7 +283,29 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 			
 		}
 		if(loadMode == LOAD_MODE_ALIGNMENT_NAME || loadMode == LOAD_MODE_FULL) answer.setReadName(alnRecord.getReadName());
+		if(loadMode == LOAD_MODE_FULL) {
+			loadOptionalAttributes(alnRecord,answer);
+		}
 		return answer;
+	}
+	private void loadOptionalAttributes(SAMRecord alnRecord, ReadAlignment aln) {
+		Short nm = alnRecord.getShortAttribute(SAMTag.NM.toString());
+		if(nm!=null)aln.setNumMismatches(nm);
+		Integer block = alnRecord.getIntegerAttribute(ATTRIBUTE_HAPLOTYPE_BLOCK);
+		if(block!=null) aln.setHaplotypeBlock(LOAD_MODE_ALIGNMENT);
+		Byte phase = alnRecord.getByteAttribute(ATTRIBUTE_PHASE_ASSIGNMENT);
+		if(phase!=null) aln.setPhaseAssignment(phase);
+		List<SAMTagAndValue> optionalAttributes = alnRecord.getAttributes();
+		Map<String,Object> optionalInfo = new LinkedHashMap<String, Object>();
+		for(SAMTagAndValue optionalValue:optionalAttributes) {
+			String tag = optionalValue.tag;
+			Object value = optionalValue.value;
+			System.err.println("Next tag: "+tag+" value class: "+value.getClass().getName()+" value length: "+value.toString().length());
+			if(!PROCESSED_OPTIONAL_ATTRIBUTES.contains(tag)) {
+				optionalInfo.put(tag, value);
+			}
+		}
+		if(optionalInfo.size()>0) aln.setUnprocessedOptionalInfo(optionalInfo);
 	}
 	private QualifiedSequenceList mateSeqNamesList = new QualifiedSequenceList();
 	private static String loadSequenceName(String refName, QualifiedSequenceList namesList) {
