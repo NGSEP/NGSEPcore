@@ -820,6 +820,9 @@ Input file with read alignments.
 <option id="o" type="FILE" attribute="outputFile">
 Output VCF file with phased variants.
 </option>
+<option id="ob" type="FILE" attribute="outputAlignmentsFile">
+Output BAM file to save the variants with phase information
+</option>
 <option id="a" type="STRING" attribute="algorithmName" defaultConstant="DEF_ALGORITHM_NAME" >
 Algorithm for single individual haplotyping. It can be Refhap or DGS.
 </option>

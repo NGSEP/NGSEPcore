@@ -300,7 +300,7 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 		for(SAMTagAndValue optionalValue:optionalAttributes) {
 			String tag = optionalValue.tag;
 			Object value = optionalValue.value;
-			System.err.println("Next tag: "+tag+" value class: "+value.getClass().getName()+" value length: "+value.toString().length());
+			//System.err.println("Next tag: "+tag+" value class: "+value.getClass().getName()+" value length: "+value.toString().length());
 			if(!PROCESSED_OPTIONAL_ATTRIBUTES.contains(tag)) {
 				optionalInfo.put(tag, value);
 			}

@@ -5,14 +5,13 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 import java.util.Iterator;
 
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
+import ngsep.alignments.io.ReadAlignmentFileWriter;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
@@ -46,6 +45,7 @@ public class SingleIndividualHaplotyper {
 	private String inputFile = null;
 	private String alignmentsFile = null;
 	private String outputFile = null;
+	private String outputAlignmentsFile = null;
 	private ReferenceGenome genome = null;
 	private String algorithmName = DEF_ALGORITHM_NAME;
 	private SIHAlgorithm algorithm;
@@ -85,8 +85,13 @@ public class SingleIndividualHaplotyper {
 	public void setOutputFile(String outputFile) {
 		this.outputFile = outputFile;
 	}
-
 	
+	public String getOutputAlignmentsFile() {
+		return outputAlignmentsFile;
+	}
+	public void setOutputAlignmentsFile(String outputAlignmentsFile) {
+		this.outputAlignmentsFile = outputAlignmentsFile;
+	}
 	public String getAlgorithmName() {
 		return algorithmName;
 	}
@@ -139,6 +144,7 @@ public class SingleIndividualHaplotyper {
 		out.println("Alignments file: "+alignmentsFile);
 		if(outputFile != null) out.println("Output VCF file: "+outputFile);
 		else out.println("VCF file written to standard output");
+		if(outputAlignmentsFile != null) out.println("Output BAM file: "+outputAlignmentsFile);
 		out.println("Minimum mapping quality: "+minMQ);
 		out.println("Algorithm: "+algorithmName);
 		log.info(""+os.toString());
@@ -154,7 +160,8 @@ public class SingleIndividualHaplotyper {
 		loadAlgorithm();
 		List<VCFRecord> records = new ArrayList<>();
 		List<CalledGenomicVariant> hetCalls = new ArrayList<>();
-		
+		ReadAlignmentFileWriter alnWriter = null;
+		PrintStream outBam = null;
 		
 		VCFFileWriter vcfWriter = new VCFFileWriter();
 		try (VCFFileReader inputVCF = new VCFFileReader(vcfFilename);
@@ -162,7 +169,11 @@ public class SingleIndividualHaplotyper {
 			VCFFileHeader header = inputVCF.getHeader();
 			vcfWriter = new VCFFileWriter();
 			vcfWriter.printHeader(header, out);
-			alnReader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_ALIGNMENT_SEQUENCE);
+			if(outputAlignmentsFile==null) alnReader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_ALIGNMENT_SEQUENCE);
+			else {
+				outBam = new PrintStream(outputAlignmentsFile);
+				alnWriter = new ReadAlignmentFileWriter(alnReader.getSequences(), outBam);
+			}
 			alnReader.setMinMQ(minMQ);
 			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 			filterFlags+=ReadAlignment.FLAG_MULTIPLE_ALN;
@@ -177,7 +188,7 @@ public class SingleIndividualHaplotyper {
 				if(!record.getSequenceName().equals(lastSeqName)) {
 					if(records.size()>0) {
 						log.info("Phasing "+records.size()+" variants from VCF file for sequence "+lastSeqName+ " heterozygous calls: "+hetCalls.size());
-						nextAln = phaseSequenceVariants(lastSeqName, hetCalls, nextAln, alnIt);
+						nextAln = phaseSequenceVariants(lastSeqName, hetCalls, nextAln, alnIt, alnWriter);
 						vcfWriter.printVCFRecords(records, out);
 					}
 					records.clear();
@@ -196,8 +207,13 @@ public class SingleIndividualHaplotyper {
 			}
 			if(records.size()>0) {
 				log.info("Phasing "+records.size()+" variants from VCF file for sequence "+lastSeqName);
-				phaseSequenceVariants(lastSeqName, hetCalls, nextAln, alnIt);
+				phaseSequenceVariants(lastSeqName, hetCalls, nextAln, alnIt, alnWriter);
 				vcfWriter.printVCFRecords(records, out);
+			}
+		} finally {
+			if(outBam!=null) {
+				outBam.flush();
+				outBam.close();
 			}
 		}
 	}
@@ -213,7 +229,7 @@ public class SingleIndividualHaplotyper {
 		}
 		
 	}
-	private ReadAlignment phaseSequenceVariants(String seqName, List<CalledGenomicVariant> hetCalls, ReadAlignment nextAln, Iterator<ReadAlignment> alnIt) throws IOException {
+	private ReadAlignment phaseSequenceVariants(String seqName, List<CalledGenomicVariant> hetCalls, ReadAlignment nextAln, Iterator<ReadAlignment> alnIt, ReadAlignmentFileWriter alnWriter) throws IOException {
 		log.info("Sequence: "+seqName+" Phasing "+hetCalls.size()+" het calls");
 		if(nextAln!=null) log.info("First alignment. "+nextAln.getSequenceName()+":"+nextAln.getFirst());
 		List<ReadAlignment> sequenceAlignments = new ArrayList<ReadAlignment>();
@@ -224,17 +240,24 @@ public class SingleIndividualHaplotyper {
 		}
 		phaseSequenceVariants(seqName, hetCalls, sequenceAlignments);
 		if(nextAln!=null) System.err.println("First alignment for next sequence. "+nextAln.getSequenceName()+":"+nextAln.getFirst());
+		if(alnWriter!=null) {
+			for(ReadAlignment aln:sequenceAlignments) alnWriter.write(aln);
+		}
 		return nextAln;
 	}
 	
 	public List<HaplotypeBlock> phaseSequenceVariants (String seqName, List<CalledGenomicVariant> hetCalls, List<ReadAlignment> alignments) throws IOException {
 		//HaplotypeBlock block = new HaplotypeBlock(hetCalls);
 		List<HaplotypeFragment> fragments = new ArrayList<>();
+		
 		List<HaplotypeBlock> answer = new ArrayList<HaplotypeBlock>();
+		int n=0;
 		int i=0;
 		int firstNextBlock = 0;
 		int lastNextBlock = -1;
 		for(ReadAlignment aln:alignments) {
+			aln.setReadNumber(n);
+			n++;
 			//Advance i
 			GenomicVariant firstHetVar = null;
 			while(i<hetCalls.size()) {
@@ -289,15 +312,7 @@ public class SingleIndividualHaplotyper {
 				CalledGenomicVariant nextCall = hetCalls.get(firstAln);
 				log.info("Discontiguity in haplotype block for sequence: "+seqName+". Last SNP with information "+lastNextBlock +" "+lastCall.getFirst()+" next SNP: "+firstAln+" "+nextCall.getFirst()+" next alignment: "+aln);
 				if(fragments.size()>0) {	
-					if(algorithm==null) loadAlgorithm();
-					List<CalledGenomicVariant> blockCalls = selectBlockCalls(hetCalls,firstNextBlock,lastNextBlock);
-					HaplotypeBlock block = new HaplotypeBlock(blockCalls,fragments);
-					algorithm.buildHaplotype(block);
-					block.phaseCallsWithHaplotype(firstNextBlock, lastNextBlock);
-					double mec = block.calculateMECCurrentHaplotypes();
-					double mecProportion = mec/block.calculateTotalCalls();
-					log.info("Phased block of "+seqName+" between "+firstNextBlock+" and "+lastNextBlock+" with "+blockCalls.size()+" variants and "+block.getNumFragments()+" fragments. MEC: "+mec+" MECproportion: "+mecProportion+" calls proportion: "+block.calculateRelativeCallsProportion());
-					if(mecProportion<DEF_MAX_MEC_PROPORTION) answer.add(block);
+					phaseFragments(seqName, firstNextBlock, lastNextBlock, hetCalls, alignments, fragments, answer);
 				}
 				fragments = new ArrayList<>();
 				firstNextBlock = firstAln;
@@ -311,17 +326,37 @@ public class SingleIndividualHaplotyper {
 		}
 		
 		if(fragments.size()>0) {	
-			if(algorithm==null) loadAlgorithm();
-			List<CalledGenomicVariant> blockCalls = selectBlockCalls(hetCalls,firstNextBlock,lastNextBlock);
-			HaplotypeBlock block = new HaplotypeBlock(blockCalls,fragments);
-			algorithm.buildHaplotype(block);
-			block.phaseCallsWithHaplotype(firstNextBlock, lastNextBlock);
-			double mec = block.calculateMECCurrentHaplotypes();
-			double mecProportion = mec/block.calculateTotalCalls();
-			log.info("Phased block of "+seqName+" between "+firstNextBlock+" and "+lastNextBlock+" with "+blockCalls.size()+" variants and "+block.getNumFragments()+" fragments. MEC: "+mec+" MECproportion: "+mecProportion+" calls proportion: "+block.calculateRelativeCallsProportion());
-			if(mecProportion<DEF_MAX_MEC_PROPORTION) answer.add(block);
+			phaseFragments(seqName, firstNextBlock, lastNextBlock, hetCalls, alignments, fragments, answer);
 		}
 		return answer;
+	}
+	private void phaseFragments(String seqName, int firstNextBlock, int lastNextBlock, List<CalledGenomicVariant> hetCalls, List<ReadAlignment> alignments, List<HaplotypeFragment> fragments, List<HaplotypeBlock> answer)
+			throws IOException {
+		if(algorithm==null) loadAlgorithm();
+		List<CalledGenomicVariant> blockCalls = selectBlockCalls(hetCalls,firstNextBlock,lastNextBlock);
+		HaplotypeBlock block = new HaplotypeBlock(blockCalls,fragments);
+		algorithm.buildHaplotype(block);
+		block.phaseCallsWithHaplotype(firstNextBlock, lastNextBlock);
+		if(outputAlignmentsFile!=null) assignReadsToHaplotpyes(block,alignments);
+		double mec = block.calculateMECCurrentHaplotypes();
+		double mecProportion = mec/block.calculateTotalCalls();
+		log.info("Phased block of "+seqName+" between "+firstNextBlock+" and "+lastNextBlock+" with "+blockCalls.size()+" variants and "+block.getNumFragments()+" fragments. MEC: "+mec+" MECproportion: "+mecProportion+" calls proportion: "+block.calculateRelativeCallsProportion());
+		if(mecProportion<DEF_MAX_MEC_PROPORTION) answer.add(block);
+	}
+	private int nextBlockId = 1;
+	private void assignReadsToHaplotpyes(HaplotypeBlock block, List<ReadAlignment> alignments) {
+		List<List<Integer>> phasedReadIds = block.getClusteredFragmentIds();
+		if(phasedReadIds.size()<2) return;
+		int blockId = nextBlockId;
+		nextBlockId++;
+		for(int b=0;b<phasedReadIds.size();b++) {
+			List<Integer> readIdsPhase = phasedReadIds.get(b);
+			for(int readId:readIdsPhase) {
+				ReadAlignment aln = alignments.get(readId);
+				aln.setHaplotypeBlock(blockId);
+				aln.setPhaseAssignment((byte)b);
+			}
+		}
 	}
 	private List<CalledGenomicVariant> selectBlockCalls(List<CalledGenomicVariant> hetCalls, int firstNextBlock, int lastNextBlock) {
 		List<CalledGenomicVariant> answer = new ArrayList<>(lastNextBlock-firstNextBlock+1);
