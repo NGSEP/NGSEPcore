@@ -169,15 +169,18 @@ public class SingleIndividualHaplotyper {
 			VCFFileHeader header = inputVCF.getHeader();
 			vcfWriter = new VCFFileWriter();
 			vcfWriter.printHeader(header, out);
-			if(outputAlignmentsFile==null) alnReader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_ALIGNMENT_SEQUENCE);
+			if(outputAlignmentsFile==null) {
+				alnReader.setLoadMode(ReadAlignmentFileReader.LOAD_MODE_ALIGNMENT_SEQUENCE);
+				alnReader.setMinMQ(minMQ);
+				int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
+				filterFlags+=ReadAlignment.FLAG_SECONDARY;
+				alnReader.setFilterFlags(filterFlags);
+			}
 			else {
 				outBam = new PrintStream(outputAlignmentsFile);
 				alnWriter = new ReadAlignmentFileWriter(alnReader.getSequences(), outBam);
 			}
-			alnReader.setMinMQ(minMQ);
-			int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
-			filterFlags+=ReadAlignment.FLAG_MULTIPLE_ALN;
-			alnReader.setFilterFlags(filterFlags);
+			
 			Iterator<ReadAlignment> alnIt = alnReader.iterator();
 			ReadAlignment nextAln = alnIt.next();
 			String lastSeqName = null;
@@ -191,6 +194,7 @@ public class SingleIndividualHaplotyper {
 						nextAln = phaseSequenceVariants(lastSeqName, hetCalls, nextAln, alnIt, alnWriter);
 						vcfWriter.printVCFRecords(records, out);
 					}
+					if (alnWriter!=null) nextAln = writeUnphasedRecords(record.getSequenceName(), nextAln, alnIt, alnWriter);
 					records.clear();
 					hetCalls.clear();
 					lastSeqName = record.getSequenceName();
@@ -207,16 +211,15 @@ public class SingleIndividualHaplotyper {
 			}
 			if(records.size()>0) {
 				log.info("Phasing "+records.size()+" variants from VCF file for sequence "+lastSeqName);
-				phaseSequenceVariants(lastSeqName, hetCalls, nextAln, alnIt, alnWriter);
+				nextAln = phaseSequenceVariants(lastSeqName, hetCalls, nextAln, alnIt, alnWriter);
 				vcfWriter.printVCFRecords(records, out);
 			}
+			if (alnWriter!=null) nextAln = writeUnphasedRecords(null, nextAln, alnIt, alnWriter);
 		} finally {
-			if(outBam!=null) {
-				outBam.flush();
-				outBam.close();
-			}
+			if(alnWriter!=null) alnWriter.close();
 		}
 	}
+	
 	private void loadAlgorithm() throws IOException {
 		try {
 			String algorithmClassName = "ngsep.haplotyping."+algorithmName+"SIHAlgorithm";
@@ -232,20 +235,28 @@ public class SingleIndividualHaplotyper {
 	private ReadAlignment phaseSequenceVariants(String seqName, List<CalledGenomicVariant> hetCalls, ReadAlignment nextAln, Iterator<ReadAlignment> alnIt, ReadAlignmentFileWriter alnWriter) throws IOException {
 		log.info("Sequence: "+seqName+" Phasing "+hetCalls.size()+" het calls");
 		if(nextAln!=null) log.info("First alignment. "+nextAln.getSequenceName()+":"+nextAln.getFirst());
-		List<ReadAlignment> sequenceAlignments = new ArrayList<ReadAlignment>();
+		List<ReadAlignment> allSequenceAlignments = new ArrayList<ReadAlignment>();
+		List<ReadAlignment> toPhaseSequenceAlignments = new ArrayList<ReadAlignment>();
 		while(nextAln!=null && nextAln.getSequenceName().equals(seqName)) {
-			sequenceAlignments.add(nextAln);
+			allSequenceAlignments.add(nextAln);
+			if(passFilters(nextAln)) toPhaseSequenceAlignments.add(nextAln);
 			if(alnIt.hasNext()) nextAln = alnIt.next();
 			else nextAln = null;
 		}
-		phaseSequenceVariants(seqName, hetCalls, sequenceAlignments);
+		phaseSequenceVariants(seqName, hetCalls, toPhaseSequenceAlignments);
 		if(nextAln!=null) System.err.println("First alignment for next sequence. "+nextAln.getSequenceName()+":"+nextAln.getFirst());
 		if(alnWriter!=null) {
-			for(ReadAlignment aln:sequenceAlignments) alnWriter.write(aln);
+			for(ReadAlignment aln:allSequenceAlignments) alnWriter.write(aln);
 		}
 		return nextAln;
 	}
 	
+	private boolean passFilters(ReadAlignment aln) {
+		if(aln.isReadUnmapped()) return false;
+		if(aln.getAlignmentQuality()<minMQ) return false;
+		if(aln.isSecondary()) return false;
+		return true;
+	}
 	public List<HaplotypeBlock> phaseSequenceVariants (String seqName, List<CalledGenomicVariant> hetCalls, List<ReadAlignment> alignments) throws IOException {
 		//HaplotypeBlock block = new HaplotypeBlock(hetCalls);
 		List<HaplotypeFragment> fragments = new ArrayList<>();
@@ -362,5 +373,14 @@ public class SingleIndividualHaplotyper {
 		List<CalledGenomicVariant> answer = new ArrayList<>(lastNextBlock-firstNextBlock+1);
 		for(int i=firstNextBlock;i<=lastNextBlock;i++) answer.add(hetCalls.get(i));
 		return answer;
+	}
+	
+	private ReadAlignment writeUnphasedRecords(String seqName, ReadAlignment nextAln, Iterator<ReadAlignment> alnIt, ReadAlignmentFileWriter alnWriter) {
+		while(nextAln!=null && (seqName == null || !nextAln.getSequenceName().equals(seqName))) {
+			alnWriter.write(nextAln);
+			if(alnIt.hasNext()) nextAln = alnIt.next();
+			else nextAln = null;
+		}
+		return nextAln;
 	}
 }
