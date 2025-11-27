@@ -70,6 +70,7 @@ public class DeNovoTransposableElementsFinderWindowSearch implements DeNovoTrans
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 		QualifiedSequenceList seqs = genome.getSequencesList();
 		for(QualifiedSequence seq:seqs) {
+			log.info("Processing sequence: "+seq.getName());
 			List<TransposableElementAnnotation> answerSeq = findTransposons(seq);
 			answer.addAll(answerSeq);
 		}
@@ -79,17 +80,22 @@ public class DeNovoTransposableElementsFinderWindowSearch implements DeNovoTrans
 	public List<TransposableElementAnnotation> findTransposons(QualifiedSequence seq) {
 		ThreadPoolManager pool = new ThreadPoolManager(numThreads, 1000);
 		pool.setSecondsPerTask(10);
-		List<List<TransposableElementAnnotation>> answP = new ArrayList<List<TransposableElementAnnotation>>();
+		//Hashmap indexed by start position
+		Map<Integer,List<TransposableElementAnnotation>> answP = new HashMap<Integer,List<TransposableElementAnnotation>>();
 		int nL = seq.getLength();
-		for(int i=0;i<nL;i+=step) {
-			final int start = i;
-			final int end = Math.min(nL, i+windowLength);
-			final int n = answP.size();
-			answP.add(null);
-			try {
-				pool.queueTask(()->findTransposonsProcess(seq, start, end, answP, n));
-			} catch (InterruptedException e) {
-				throw new RuntimeException("Process interrupted", e);
+		int overlappingSegments = windowLength/step;
+		if(windowLength%step !=0) overlappingSegments++;
+		log.info("Window length: "+windowLength+" step: "+step+" overlapping segments: "+overlappingSegments);
+		for(int s=0;s<overlappingSegments;s++) {
+			int startSteps = step*s;
+			for(int i=startSteps;i<nL;i+=windowLength) {
+				final int start = i;
+				final int end = Math.min(nL, i+windowLength);
+				try {
+					pool.queueTask(()->findTransposonsProcess(seq, start, end, answP));
+				} catch (InterruptedException e) {
+					throw new RuntimeException("Process interrupted", e);
+				}
 			}
 		}
 		try {
@@ -98,13 +104,14 @@ public class DeNovoTransposableElementsFinderWindowSearch implements DeNovoTrans
 			throw new RuntimeException("Process interrupted", e);
 		}
 		List<TransposableElementAnnotation> allEvents = new ArrayList<TransposableElementAnnotation>();
-		for(List<TransposableElementAnnotation> answP1:answP) {
+		for(List<TransposableElementAnnotation> answP1:answP.values()) {
 			if(answP1!=null) allEvents.addAll(answP1);
 		}
 		Collections.sort(allEvents,GenomicRegionPositionComparator.getInstance());
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 		TransposableElementAnnotation lastAnn = null;
 		for(TransposableElementAnnotation ann:allEvents) {
+			if(!passFilters(ann)) continue;
 			if(lastAnn==null || lastAnn.getLast()<ann.getFirst()) {
 				answer.add(ann);
 				lastAnn = ann;
@@ -112,18 +119,27 @@ public class DeNovoTransposableElementsFinderWindowSearch implements DeNovoTrans
 		}
 		return answer;
 	}
-	private void findTransposonsProcess(QualifiedSequence seq, int start, int end, List<List<TransposableElementAnnotation>> answP, int n) {
-		answP.set(n,findTransposons(seq, start, end));
+	private void findTransposonsProcess(QualifiedSequence seq, int start, int end, Map<Integer,List<TransposableElementAnnotation>> answP) {
+		List<TransposableElementAnnotation> overlappingEvents = findOverlappingEvents(seq, start,end, answP);
+		answP.put(start,findTransposons(seq, start, end, overlappingEvents));
 	}
-	protected List<TransposableElementAnnotation> findTransposons(QualifiedSequence seq, int start, int end) {
+	private List<TransposableElementAnnotation> findOverlappingEvents(QualifiedSequence seq, int start, int end, Map<Integer, List<TransposableElementAnnotation>> answP) {
+		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
+		int overlappingSegments = windowLength/step;
+		int s = Math.max(0, start-overlappingSegments*step);
+		for(int i=s;i<end;i+=step) {
+			List<TransposableElementAnnotation> events = answP.get(i);
+			if(events==null) continue;
+			for(TransposableElementAnnotation ann:events) {
+				if(start <=ann.getLast() && ann.getFirst()<=end) answer.add(ann);
+			}
+		}
+		return answer;
+	}
+	protected List<TransposableElementAnnotation> findTransposons(QualifiedSequence seq, int start, int end, List<TransposableElementAnnotation> overlappingEvents) {
 		return new ArrayList<TransposableElementAnnotation>();
 	}
-	protected Map<Long, List<Integer>> getReverseMap(Map<Integer, Long> kmersMap) {
-		Map<Long,List<Integer>> reverseMapF = new HashMap<Long, List<Integer>>();
-		for(Map.Entry<Integer, Long> entry:kmersMap.entrySet()) {
-			List<Integer> posKmer = reverseMapF.computeIfAbsent(entry.getValue(), v-> new ArrayList<Integer>());
-			posKmer.add(entry.getKey());
-		}
-		return reverseMapF;
+	protected boolean passFilters(TransposableElementAnnotation ann) {
+		return true;
 	}
 }

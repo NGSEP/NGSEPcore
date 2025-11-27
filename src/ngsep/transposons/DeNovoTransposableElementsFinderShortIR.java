@@ -48,9 +48,9 @@ public class DeNovoTransposableElementsFinderShortIR extends DeNovoTransposableE
 		CharSequence rc = DNAMaskedSequence.getReverseComplement(seqDNA);
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 		Map<Integer,Long> kmersMapForward = KmersExtractor.extractDNAKmerCodesAsMap(seqDNA, kmerLength, 0, seqDNA.length(),true);
-		Map<Long, List<Integer>> reverseMapF = getReverseMap(kmersMapForward);
+		Map<Long, List<Integer>> reverseMapF = KmersExtractor.getReverseMap(kmersMapForward);
 		Map<Integer,Long> kmersMapReverse = KmersExtractor.extractDNAKmerCodesAsMap(rc, kmerLength, 0, rc.length(),true);
-		Map<Long, List<Integer>> reverseMapR = getReverseMap(kmersMapReverse);
+		Map<Long, List<Integer>> reverseMapR = KmersExtractor.getReverseMap(kmersMapReverse);
 		PairwiseAlignerSimpleGap pwa = new PairwiseAlignerSimpleGap(minElementLength);
 		pwa.setForceEnd1(false);
 		pwa.setForceEnd2(false);

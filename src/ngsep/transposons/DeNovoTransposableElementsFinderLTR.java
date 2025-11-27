@@ -42,7 +42,7 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 		baseFinder.loadHMMsFromClasspath(domainsLTR);
 	}
 	
-	protected List<TransposableElementAnnotation> findTransposons(QualifiedSequence seq, int start, int end) {
+	protected List<TransposableElementAnnotation> findTransposons(QualifiedSequence seq, int start, int end, List<TransposableElementAnnotation> overlappingEvents) {
 		Logger log = getLog();
 		int kmerLength = getKmerLength();
 		int windowLength = getWindowLength();
@@ -51,9 +51,10 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();
 		
 		String segmentDNA = seq.getCharacters().subSequence(start, end).toString();
+		if(overlappingEvents.size()>0) segmentDNA = maskSegment(segmentDNA,start,overlappingEvents);
 		int n = segmentDNA.length();
 		Map<Integer,Long> kmersMapForward = KmersExtractor.extractDNAKmerCodesAsMap(segmentDNA, kmerLength, 0, n,true);
-		Map<Long, List<Integer>> reverseMapF = getReverseMap(kmersMapForward);
+		Map<Long, List<Integer>> reverseMapF = KmersExtractor.getReverseMap(kmersMapForward);
 		List<UngappedSearchHit> hits = new ArrayList<UngappedSearchHit>();
 		int totalMultihitKmers = 0;
 		int totalHitsMultihitKmers = 0;
@@ -92,14 +93,23 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 			assignFamily(ltrAnn, seq, domainsFinder);
 			findTargetSideDuplication(ltrAnn, seq);
 			if (start==debugPos) System.err.println("Assigned family for annotation at "+ltrAnn.getFirst()+" "+ltrAnn.getLast()+" inferred family: "+ltrAnn.getInferredFamily());
-			if(passFilters(ltrAnn)) answer.add(ltrAnn);
+			answer.add(ltrAnn);
 		}
-		//TODO: Discard possible hits due to tandem repeats
 		return answer;
 	}
 	
 
 	
+
+	private String maskSegment(String segmentDNA, int start, List<TransposableElementAnnotation> overlappingEvents) {
+		StringBuilder segmentMod = new StringBuilder(segmentDNA);
+		for(TransposableElementAnnotation ann:overlappingEvents) {
+			int startMask = Math.max(0, ann.getFirst()-1-start);
+			int endMask = Math.min(segmentDNA.length(), ann.getLast()-start);
+			for(int i=startMask;i<endMask;i++) segmentMod.setCharAt(i, 'N');
+		}
+		return segmentMod.toString();
+	}
 
 	private void findTargetSideDuplication(TransposableElementAnnotation ltrAnn, QualifiedSequence seq) {
 		CharSequence dna = seq.getCharacters();
@@ -175,7 +185,6 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 		int internalLeft = evidenceStart1+alnAfterHit.getEnd1();
 		int end2 = Math.min(seq.getLength(), evidenceStart2+alnAfterHit.getEnd2());
 		if (start==debugPos) System.err.println("Checking hit of sequence. Start: "+start+" endsAlnAfter: "+alnAfterHit.getEnd1()+" "+alnAfterHit.getEnd2()+" mismatches: "+alnAfterHit.getMismatches()+" Right aln limits: "+internalLeft+ " "+end2);
-		//TODO: Check alignment quality
 		if(alnAfterHit.getMismatches()>0.25*ltrEstimatedLength) return null;
 		if(internalLeft-start2<50) return null;
 		
@@ -194,7 +203,7 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 	}
 	
 	
-	private boolean passFilters(TransposableElementAnnotation ann) {
+	protected boolean passFilters(TransposableElementAnnotation ann) {
 		if(ann.getInferredFamily()==null) return false;
 		if(filterOrder!=null) {
 			TransposableElementFamily family = ann.getInferredFamily();

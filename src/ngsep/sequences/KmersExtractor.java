@@ -27,6 +27,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,6 +40,7 @@ import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.main.ThreadPoolManager;
 import ngsep.math.Distribution;
+import ngsep.math.ShannonEntropyCalculator;
 import ngsep.sequences.io.FastaFileReader;
 import ngsep.sequences.io.FastqFileReader;
 
@@ -636,12 +638,17 @@ public class KmersExtractor {
 		return kmer;
 	}
 	public static final boolean isLowComplexity(CharSequence kmer) {
-		// TODO: Actually calculate complexity
-		String kmerStr = kmer.toString();
-		if(kmerStr.contains("AAAAAAAA")) return true;
-		if(kmerStr.contains("TTTTTTTT")) return true;
-		if(kmerStr.contains("TATATATA")) return true;
-		return false;
+		ShannonEntropyCalculator calculator = new ShannonEntropyCalculator(4);
+		double entropy = calculator.calculateEntropy(kmer);
+		return entropy < 1.2;
+	}
+	public static Map<Long, List<Integer>> getReverseMap(Map<Integer, Long> kmersMap) {
+		Map<Long,List<Integer>> reverseMapF = new HashMap<Long, List<Integer>>();
+		for(Map.Entry<Integer, Long> entry:kmersMap.entrySet()) {
+			List<Integer> posKmer = reverseMapF.computeIfAbsent(entry.getValue(), v-> new ArrayList<Integer>());
+			posKmer.add(entry.getKey());
+		}
+		return reverseMapF;
 	}
 	public void saveResults () throws IOException {
 		log.info("Calculating distribution of abundances from "+kmersMap.size()+" k-mers");
