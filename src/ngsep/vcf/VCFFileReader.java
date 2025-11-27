@@ -241,7 +241,7 @@ public class VCFFileReader implements Iterable<VCFRecord>,Closeable {
 		}
 		char c1 = items[3].charAt(0);
 		char c2 = items[4].charAt(0);
-		if(alleles.size()==2 && items[3].length()==1 && items[4].length()==1 && DNASequence.isInAlphabeth(c1) && DNASequence.isInAlphabeth(c2)) {
+		if(alleles.size()==2 && items[3].length()==1 && items[4].length()==1 && DNASequence.EMPTY_DNA_SEQUENCE.isInAlphabet(c1) && DNASequence.EMPTY_DNA_SEQUENCE.isInAlphabet(c2)) {
 			SNV snv = new SNV(seq.getName(), position, c1, c2);
 			snv.setId(id);
 			snv.setVariantQS(variantQS);

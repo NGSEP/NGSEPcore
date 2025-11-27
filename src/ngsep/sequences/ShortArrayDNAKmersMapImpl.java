@@ -30,7 +30,7 @@ public class ShortArrayDNAKmersMapImpl implements KmersMap {
 	@Override
 	public int getCount(CharSequence kmer) {
 		if(kmer.length()!=kmerLength) throw new IllegalArgumentException("Unexpected length for query: "+kmer+" expected: "+kmerLength);
-		long code = AbstractLimitedSequence.getHash(kmer, 0, kmer.length(), DNASequence.EMPTY_DNA_SEQUENCE);
+		long code = DNASequence.EMPTY_DNA_SEQUENCE.getLongCode(kmer, 0, kmer.length());
 		return getCount(code);
 	}
 	
@@ -43,7 +43,7 @@ public class ShortArrayDNAKmersMapImpl implements KmersMap {
 	public void setCount(CharSequence kmer, int count) {
 		if(kmer.length()!=kmerLength) throw new IllegalArgumentException("Unexpected length for query: "+kmer+" expected: "+kmerLength);
 		//Casting is possible because the kmer length is less than 16
-		int hash = (int)AbstractLimitedSequence.getHash(kmer, 0, kmer.length(), DNASequence.EMPTY_DNA_SEQUENCE);
+		int hash = (int)DNASequence.EMPTY_DNA_SEQUENCE.getLongCode(kmer, 0, kmer.length());
 		if(count>Short.MAX_VALUE) count = Short.MAX_VALUE;
 		if(kmerCounts[hash]==0 && count>0) size++;
 		kmerCounts[hash] = (short) count;
@@ -52,7 +52,7 @@ public class ShortArrayDNAKmersMapImpl implements KmersMap {
 	@Override
 	public void addOcurrance(CharSequence kmer) {
 		if(kmer.length()!=kmerLength) throw new IllegalArgumentException("Unexpected length for query: "+kmer+" expected: "+kmerLength);
-		long code = AbstractLimitedSequence.getHash(kmer, 0, kmer.length(), DNASequence.EMPTY_DNA_SEQUENCE);
+		long code = DNASequence.EMPTY_DNA_SEQUENCE.getLongCode(kmer, 0, kmer.length());
 		addCodeOccurance(code);
 		
 	}
@@ -93,7 +93,7 @@ public class ShortArrayDNAKmersMapImpl implements KmersMap {
 	public void save(PrintStream out) {
 		for(int i=0;i<kmerCounts.length;i++) {
 			if(kmerCounts[i]>0) {
-				char [] sequence = AbstractLimitedSequence.getSequence(i, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE);
+				char [] sequence = DNASequence.EMPTY_DNA_SEQUENCE.getSequenceFromCode(i, kmerLength);
 				out.println(new String(sequence)+"\t"+kmerCounts[i]);
 			}
 		}
@@ -105,7 +105,7 @@ public class ShortArrayDNAKmersMapImpl implements KmersMap {
 		List<CharSequence> answer = new ArrayList<CharSequence>();
 		for(int i=0;i<kmerCounts.length;i++) {
 			if(kmerCounts[i]==count) {
-				char [] sequence = AbstractLimitedSequence.getSequence(i, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE);
+				char [] sequence = DNASequence.EMPTY_DNA_SEQUENCE.getSequenceFromCode(i, kmerLength);
 				answer.add(new DNAShortKmer(new String(sequence)));
 			}
 		}

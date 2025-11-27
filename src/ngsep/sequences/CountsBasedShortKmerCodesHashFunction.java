@@ -29,6 +29,7 @@ public class CountsBasedShortKmerCodesHashFunction implements ShortKmerCodesHash
 	private KmersMap kmersMap;
 	private KmersMapAnalyzer kmersAnalyzer;
 	private PrimeNumbers primeNumbersHelper;
+	private LimitedSequence alphabetSequence = DNASequence.EMPTY_DNA_SEQUENCE;
 	
 	
 	public CountsBasedShortKmerCodesHashFunction(int kmerLength, KmersMapAnalyzer kmersAnalyzer) {
@@ -44,16 +45,16 @@ public class CountsBasedShortKmerCodesHashFunction implements ShortKmerCodesHash
 
 
 	@Override
-	public int getHash(long dnaHash) {
+	public int getHash(long sequenceCode) {
 		int prime = 1073676287;
 		int count;
 		if(kmersMap instanceof ShortArrayDNAKmersMapImpl) {
 			//Select the 15-mer suffix
-			count = ((ShortArrayDNAKmersMapImpl)kmersMap).getCount(dnaHash & 0x3FFFFFFF);
+			count = ((ShortArrayDNAKmersMapImpl)kmersMap).getCount(sequenceCode & 0x3FFFFFFF);
 			//count = ((ShortArrayDNAKmersMapImpl)kmersMap).getCount(dnaHash);
 			//count = 20;
 		} else {
-			String kmer = new String(AbstractLimitedSequence.getSequence(dnaHash, kmerLength, DNASequence.EMPTY_DNA_SEQUENCE));
+			String kmer = new String(alphabetSequence.getSequenceFromCode(sequenceCode, kmerLength));
 			count = kmersMap.getCount(kmer);
 		}
 		long hash = Integer.MAX_VALUE;
@@ -61,7 +62,7 @@ public class CountsBasedShortKmerCodesHashFunction implements ShortKmerCodesHash
 			long rankingStart=kmersAnalyzer.getRanking(count);
 			long kmersWithCount = kmersAnalyzer.getNumKmers(count);
 			if(kmersWithCount<primeNumbersHelper.getCapacity()) prime = primeNumbersHelper.getNextPrime((int) kmersWithCount);
-			hash = rankingStart+(dnaHash%prime);
+			hash = rankingStart+(sequenceCode%prime);
 			if(hash>=Integer.MAX_VALUE) hash = Integer.MAX_VALUE-1;
 		}
 		return (int)hash;

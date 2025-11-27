@@ -32,7 +32,6 @@ import ngsep.alignments.PairwiseAlignerSimpleGap;
 import ngsep.alignments.PairwiseAlignment;
 import ngsep.math.Distribution;
 import ngsep.math.ShannonEntropyCalculator;
-import ngsep.sequences.AbstractLimitedSequence;
 import ngsep.sequences.AminoacidSequence;
 import ngsep.sequences.KmersExtractor;
 
@@ -153,7 +152,7 @@ public class HomologRelationshipsFinder {
 				totalWeight+=weight;
 				if(subjectUnitIdxsKmer==null) continue;
 				if(debug) {
-					String kmer = new String(AbstractLimitedSequence.getSequence(code, kmerLength, new AminoacidSequence()));
+					String kmer = new String(AminoacidSequence.EMPTY_AA_SEQUENCE.getSequenceFromCode(code, kmerLength));
 					int limit = (queryUnits==subjectUnits)?1:0;
 					if(subjectUnitIdxsKmer.size()>limit) System.out.println("next kmer: "+kmer+" entropy: "+entropyCalculator.calculateEntropy(kmer)+" hits: "+subjectUnitIdxsKmer+" pvalue: "+pValueCode+" score: "+score+" weight: "+weight);
 				}

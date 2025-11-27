@@ -68,7 +68,8 @@ public class DNASequence extends AbstractLimitedSequence{
 			return -1;
 		}
 	}
-	public static boolean isInAlphabeth(char base) {
+	@Override
+	public boolean isInAlphabet(char base) {
 		return getDNAIndex(base)>=0;
 	}
 	
@@ -129,7 +130,8 @@ public class DNASequence extends AbstractLimitedSequence{
 	 * @param targetSeq AbstractLimitedSequence having the target alphabet
 	 * @return long Positive number representing the substring of seq between start (included) and end (not included)
 	 */
-	public static long getDNAHash(CharSequence seq, int start, int end) {
+	@Override
+	public long getLongCode(CharSequence seq, int start, int end) {
 		long number =0;
 		for(int i=start;i<end;i++) {
 			number <<= 2;
@@ -144,31 +146,39 @@ public class DNASequence extends AbstractLimitedSequence{
 	}
 	
 	/**
-	 * Gets the sequence corresponding with the given hash and the given size
-	 * @param number Hash number to decode
-	 * @param size Size of the sequence to return
-	 * @param targetSeq AbstractLimitedSequence having the target alphabet
+	 * Gets the sequence corresponding with the given code and the given length
+	 * @param code Number to decode
+	 * @param length of the sequence to return
 	 * @return char[] Decoded String as a char array
 	 */
-	public static char [] getDNASequence(long number, int size) {
-		char [] answer = new char[size];
-		for(int i=0;i<size;i++) {
+	@Override
+	public char [] getSequenceFromCode(long number, int length) {
+		char [] answer = new char[length];
+		for(int i=0;i<length;i++) {
 			int nextDigit = (int)(number&3);
-			int index = size-i-1;
+			int index = length-i-1;
 			answer[index] = DNASequence.BASES_STRING.charAt(nextDigit);
 			number = number>>2;
 		}
 		return answer;
 	}
-	
-	public static long getNextDNAHash(long hash, int length, char nextCharacter) {
+	/**
+	 * Calculates the code corresponding to the sequence removing the first character of the
+	 * sequence represented by the given code and adding the given character at the end
+	 * @param code of the original short sequence
+	 * @param length of the original and of the new sequence
+	 * @param nextCharacter to append at the end of the new sequence
+	 * @return long encoding of the new sequence
+	 */
+	@Override
+	public long getNextCode(long code, int length, char nextCharacter) {
 		int index = getDNAIndex(nextCharacter);
 		if(index <0) {
 			throw new IllegalArgumentException("Character "+nextCharacter+" not supported by sequence of type "+DNASequence.class.getName());
 		}
 		long bitModule = 1L << (2*(length-1));
 		bitModule--;
-		long answer = hash & bitModule;
+		long answer = code & bitModule;
 		answer <<= 2;
 		answer+=index;
 		return answer;
@@ -261,11 +271,11 @@ public class DNASequence extends AbstractLimitedSequence{
 		time2 = System.currentTimeMillis();
 		System.out.println("Time DNASequence append: "+ (time2 - time1));
 		time1 = time2;
-		long code = DNASequence.getDNAHash(randomSequence, 0, 15);
+		long code = DNASequence.EMPTY_DNA_SEQUENCE.getLongCode(randomSequence, 0, 15);
 		for(int i=15;i<randomSequence.length();i++) {
-			code = DNASequence.getNextDNAHash(code, 15, randomSequence.charAt(i));
+			code = DNASequence.EMPTY_DNA_SEQUENCE.getNextCode(code, 15, randomSequence.charAt(i));
 			if(code!= (code & 0x3FFFFFFF)) System.out.println("Code "+code+" larger than 2E30");
-			char [] seq2 = DNASequence.getDNASequence(code, 15);
+			char [] seq2 = DNASequence.EMPTY_DNA_SEQUENCE.getSequenceFromCode(code, 15);
 			String k1 = new String (seq2);
 			String k2 = randomSequence.substring(i-14, i+1);
 			if(!k1.equals(k2)) System.out.println("Error encoding / decoding next character. Expected: "+k2+" given: "+k1); 

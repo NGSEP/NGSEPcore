@@ -37,17 +37,16 @@ public class DNAShortKmer implements CharSequence, Comparable<DNAShortKmer>, Ser
 	private static final long serialVersionUID = 1L;
 	private long index;
 	private byte length;
-	private static final DNASequence EMPTYDNASEQ = new DNASequence();
 	
 	public DNAShortKmer(CharSequence kmerSeq) {
 		length = (byte) kmerSeq.length();
 		if(length>31) throw new IllegalArgumentException("The maximum k-mer size for this class is 31. Input k-mer: "+kmerSeq);
-		index = AbstractLimitedSequence.getHash(kmerSeq, 0, length,EMPTYDNASEQ);
+		index = DNASequence.EMPTY_DNA_SEQUENCE.getLongCode(kmerSeq, 0, length);
 	}
 	
 	@Override
 	public char charAt(int i) {
-		char [] characters = AbstractLimitedSequence.getSequence(index, length, EMPTYDNASEQ);
+		char [] characters = DNASequence.EMPTY_DNA_SEQUENCE.getSequenceFromCode(index, length);
 		return characters[i];
 	}
 	@Override
@@ -66,7 +65,7 @@ public class DNAShortKmer implements CharSequence, Comparable<DNAShortKmer>, Ser
 	 */
 	@Override
 	public String toString() {
-		return new String (AbstractLimitedSequence.getSequence(index, length, EMPTYDNASEQ));
+		return new String (DNASequence.EMPTY_DNA_SEQUENCE.getSequenceFromCode(index, length));
 	}
 
 	/* (non-Javadoc)

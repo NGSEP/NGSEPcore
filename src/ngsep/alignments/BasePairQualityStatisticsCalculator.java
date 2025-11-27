@@ -198,11 +198,11 @@ public class BasePairQualityStatisticsCalculator {
 				}
 				for (int j = 0; j < read.length(); j++) {
 					char baseRead = Character.toUpperCase(read.charAt(j));
-					if (DNASequence.isInAlphabeth(baseRead)) {
+					if (DNASequence.EMPTY_DNA_SEQUENCE.isInAlphabet(baseRead)) {
 						int pos = aln.getReferencePositionAlignedRead(j);
 						if (pos > 0) {
 							char baseRef = Character.toUpperCase(genome.getReferenceBase(aln.getSequenceName(),pos));
-							if (baseRef != 0 && DNASequence.isInAlphabeth(baseRef)) {
+							if (baseRef != 0 && DNASequence.EMPTY_DNA_SEQUENCE.isInAlphabet(baseRef)) {
 								basesInRegion++;
 								if (baseRead != baseRef) {
 									int posStats = j;

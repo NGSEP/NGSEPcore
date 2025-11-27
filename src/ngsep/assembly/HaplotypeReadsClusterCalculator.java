@@ -642,7 +642,7 @@ class SimpleVariantsDetectorPileupListener implements PileupListener {
 		int idxDebug = -1;
 		int pos = pileup.getPosition();
 		char refBase = consensus.charAt(pos-1);
-		if(!DNASequence.isInAlphabeth(refBase)) return;
+		if(!DNASequence.EMPTY_DNA_SEQUENCE.isInAlphabet(refBase)) return;
 		int n = DNASequence.BASES_STRING.length();
 		int [] acgtCounts = new int [n];
 		List<ReadAlignment> alns = pileup.getAlignments();

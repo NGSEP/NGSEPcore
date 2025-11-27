@@ -11,7 +11,6 @@ import ngsep.alignments.PairwiseAligner;
 import ngsep.alignments.PairwiseAlignerSimpleGap;
 import ngsep.alignments.PairwiseAlignment;
 import ngsep.genome.ReferenceGenome;
-import ngsep.sequences.AbstractLimitedSequence;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.KmersExtractor;
@@ -69,7 +68,7 @@ public class DeNovoTransposableElementsFinderShortIR extends DeNovoTransposableE
 			List<Integer> posRevList = reverseMapR.get(entry.getValue()); 
 			int endTIR = n - posRevList.get(posRevList.size()-1);
 			if(endTIR<startTIR+minElementLength) continue;
-			if(start == debugPos) System.out.println("SeqLen: "+seqDNA.length()+" Kmer: "+new String( AbstractLimitedSequence.getSequence(entry.getValue(), kmerLength, new DNASequence()))+" posForward: "+posKmerForward+" posReverse: "+posRevList+" limits TIR: "+startTIR+" - "+endTIR);
+			if(start == debugPos) System.out.println("SeqLen: "+seqDNA.length()+" Kmer: "+new String(DNASequence.EMPTY_DNA_SEQUENCE.getSequenceFromCode(entry.getValue(), kmerLength))+" posForward: "+posKmerForward+" posReverse: "+posRevList+" limits TIR: "+startTIR+" - "+endTIR);
 			DNAMaskedSequence candidateTIR = (DNAMaskedSequence)seqDNA.subSequence(startTIR, endTIR);
 			int [] tirInfo = validateTIR(candidateTIR.toString(),pwa, start == debugPos);
 			if(start == debugPos) System.out.println("Seq: "+candidateTIR+" info: "+tirInfo[0]+" "+tirInfo[1]+" "+tirInfo[2]);

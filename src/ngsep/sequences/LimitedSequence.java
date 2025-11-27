@@ -69,5 +69,29 @@ public interface LimitedSequence extends CharSequence,Comparable<LimitedSequence
 	 * @return int Size of the alphabet
 	 */
 	public int getAlphabetSize();
+	/**
+	 * Returns the code corresponding with a suitable size substring of the given sequence 
+	 * @param seq Sequence to calculate hash
+	 * @param start Zero based start position
+	 * @param end Zero based end position
+	 * @return long Positive number representing the substring of seq between start (included) and end (not included)
+	 */
+	public long getLongCode(CharSequence seq, int start, int end);
+	/**
+	 * Gets the sequence corresponding with the given code and the given size
+	 * @param code Number to decode
+	 * @param length of the sequence to return
+	 * @return char[] Decoded String as a char array
+	 */
+	public char [] getSequenceFromCode(long code, int length);
+	/**
+	 * Calculates the code corresponding to the sequence removing the first character of the
+	 * sequence represented by the given code and adding the given character at the end
+	 * @param code of the original short sequence
+	 * @param length of the original and of the new sequence
+	 * @param nextCharacter to append at the end of the new sequence
+	 * @return long encoding of the new sequence
+	 */
+	public long getNextCode(long code, int length, char nextCharacter);
 	
 }

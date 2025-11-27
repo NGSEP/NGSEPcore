@@ -58,6 +58,8 @@ public class ShortKmerCodesTable {
 	private long [][] sequencesByCodeTable;
 	//Actual lengths of the lists within the table
 	private short [] sequencesByCodeTableColumnLengths;
+	//Locks per row for synchronization
+	private String [] locks;
 	
 	private long totalEntries = 0;
 	private ThreadPoolManager poolAddKmerCodes;
@@ -76,6 +78,10 @@ public class ShortKmerCodesTable {
 		for(int i=0;i<sequencesByCodeTable.length;i++) Arrays.fill(sequencesByCodeTable[i], 0);
 		sequencesByCodeTableColumnLengths = new short [capacity];
 		Arrays.fill(sequencesByCodeTableColumnLengths, (short)0);
+		locks = new String[capacity];
+		for(int i=0;i<capacity;i++) {
+			locks[i] = ""+i;
+		}
 		if(useThreadToAddCodes) {
 			poolAddKmerCodes = new ThreadPoolManager(1, 100);
 			//poolAddKmerCodes.setSecondsPerTask(5);
@@ -117,22 +123,24 @@ public class ShortKmerCodesTable {
 		return sequencesByCodeTableColumnLengths[row];
 	}
 	
-	private void addCodeSequence (long code, List<Long> entries) {
+	private void addCodeSequence (long code, Long entry) {
 		Integer row = matrixRowMap.get(code);
 		if(row==null) {
-			row = size();
-			if(row ==Integer.MAX_VALUE) {
-				log.warning("Reached maximum number of minimizers that can be saved "+row);
-				return;
+			synchronized (matrixRowMap) {
+				row = size();
+				if(row == Integer.MAX_VALUE) {
+					log.warning("Reached maximum number of minimizers that can be saved "+row);
+					return;
+				}
+				matrixRowMap.put(code, row);
+				if(row==sequencesByCodeTable.length) resizeTable();
 			}
-			matrixRowMap.put(code, row);
-			if(row==sequencesByCodeTable.length) resizeTable();
 		}
 		int currentCount = sequencesByCodeTableColumnLengths[row];
-		int newCount = currentCount+entries.size(); 
+		int newCount = currentCount+1;
 		if (newCount<Short.MAX_VALUE && (maxHitsKmerCode==0 || newCount<maxHitsKmerCode)) {
-			for (long entry:entries) addToTable(row, entry);
-			totalEntries+=entries.size();
+			addToTable(row, entry);
+			totalEntries++;
 		} 
 		//else System.out.println("Rejected codes for kmer: "+new String(DNASequence.getDNASequence(code, kmerLength))+" current count: "+currentCount+" new entries: "+entries.size());
 	}
@@ -141,23 +149,31 @@ public class ShortKmerCodesTable {
 		int newCapacity =  2*sequencesByCodeTable.length;
 		if(newCapacity<0) newCapacity = Integer.MAX_VALUE;
 		sequencesByCodeTableColumnLengths = Arrays.copyOf(sequencesByCodeTableColumnLengths, newCapacity);
+		locks = Arrays.copyOf(locks, newCapacity);
 		long [][] newTable = new long [newCapacity][0];
 		for(int i=0;i<newCapacity;i++) {
 			if(i<sequencesByCodeTable.length) newTable[i] = sequencesByCodeTable[i];
-			else newTable[i] = new long[1];
+			else {
+				newTable[i] = new long[1];
+				locks[i] = ""+i;
+			}
 		}
 		sequencesByCodeTable = newTable;
 		log.info("Resized codes table. New capacity: "+sequencesByCodeTable.length);
 	}
 	private void addToTable(int row, long value) {
 		long [] codeEntries = sequencesByCodeTable[row];
-		int column = sequencesByCodeTableColumnLengths[row];
-		if(column == codeEntries.length ) {
-			//Resize entries
-			sequencesByCodeTable[row] = Arrays.copyOf(codeEntries, 2*codeEntries.length);
+		String lock = locks[row]; 
+		synchronized (lock) {
+			int column = sequencesByCodeTableColumnLengths[row];
+			if(column == codeEntries.length ) {
+				//Resize entries
+				sequencesByCodeTable[row] = Arrays.copyOf(codeEntries, 2*codeEntries.length);
+			}
+			sequencesByCodeTable[row][column] = value;
+			sequencesByCodeTableColumnLengths[row]++;
 		}
-		sequencesByCodeTable[row][column] = value;
-		sequencesByCodeTableColumnLengths[row]++;
+		
 	}
 	public Logger getLog() {
 		return log;
@@ -204,7 +220,7 @@ public class ShortKmerCodesTable {
 		long time = (System.currentTimeMillis()-startTime)/1000;
 		if(n>1000000) log.info("Sequence "+sequenceId+" length: "+n+" total minimizers: "+totalMinimizers+" pct: "+(100*totalMinimizers/sequence.length())+" time(s): "+time);
 	}
-	private synchronized void addCodesSequenceTask(int sequenceId, int n, List<KmerCodesTableEntry> codesSeq) {
+	private void addCodesSequenceTask(int sequenceId, int n, List<KmerCodesTableEntry> codesSeq) {
 		final List<KmerCodesTableEntry> codesSeqToAdd = new ArrayList<KmerCodesTableEntry>(codesSeq);
 		if(poolAddKmerCodes!=null) {
 			try {
@@ -218,9 +234,7 @@ public class ShortKmerCodesTable {
 	private void addCodesSequence(int sequenceId, int seqLen, List<KmerCodesTableEntry> codesSeq) {
 		//long startTime = System.currentTimeMillis();
 		for(KmerCodesTableEntry entry:codesSeq) {
-			List<Long> a = new ArrayList<Long>(1);
-			a.add(entry.encode());
-			addCodeSequence (entry.getKmerCode(), a);
+			addCodeSequence (entry.getKmerCode(), entry.encode());
 		}
 		//long time = (System.currentTimeMillis()-startTime)/1000;
 		//if(seqLen>1000000) log.info("Sequence "+sequenceId+" length: "+seqLen+" entries added: "+codesSeq.size()+" time(s): "+time);
@@ -312,7 +326,7 @@ public class ShortKmerCodesTable {
 				highDepthUsedCodes.add(kmerCode);
 				if(internalCount>1) internalMultiUsedCodes.add(kmerCode);
 			}
-			if (queryIdx == idxDebug) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" codes matching: "+codesMatching.length+" internal multihit: "+(internalMultiHitCodes.getOrDefault(kmerCode,0)));
+			if (queryIdx == idxDebug) System.out.println("Minimizers table. For pos "+startQuery+" kmer: "+new String (DNASequence.EMPTY_DNA_SEQUENCE.getSequenceFromCode(kmerCode, kmerLength))+" codes matching: "+codesMatching.length+" internal multihit: "+(internalMultiHitCodes.getOrDefault(kmerCode,0)));
 			if(numHits>limitHits) {
 				multihitCodes++;
 				if(internalCount>1) {
@@ -331,7 +345,7 @@ public class ShortKmerCodesTable {
 			for(long entryCode:codesMatching) {
 				int [] dec = KmerCodesTableEntry.decode(entryCode);
 				int subjectIdx = dec[0];
-				if (queryIdx == idxDebug && subjectIdx==0) System.err.println("KmerCodesTable. For pos "+startQuery+" kmer: "+new String (DNASequence.getDNASequence(kmerCode, kmerLength))+" next match: "+subjectIdx+" start: "+dec[1]);
+				if (queryIdx == idxDebug && subjectIdx==0) System.err.println("KmerCodesTable. For pos "+startQuery+" kmer: "+new String (DNASequence.EMPTY_DNA_SEQUENCE.getSequenceFromCode(kmerCode, kmerLength))+" next match: "+subjectIdx+" start: "+dec[1]);
 				if (subjectIdx < 0) {
 					System.err.println("Invalid subject "+subjectIdx+" query code: "+kmerCode+" matching code: "+entryCode+" start: "+dec[1]);
 					continue;
@@ -427,7 +441,7 @@ public class ShortKmerCodesTable {
 			return 1.0*mode/(mode+diff3);
 		} 
 		else {
-			CharSequence sequence = new String (DNASequence.getDNASequence(code, length));
+			CharSequence sequence = new String (DNASequence.EMPTY_DNA_SEQUENCE.getSequenceFromCode(code, length));
 			double entropy = entropyCalculator.calculateEntropy(sequence);
 			return entropyCalculator.normalizeEntropy(entropy);
 		}

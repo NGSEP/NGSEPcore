@@ -62,7 +62,7 @@ public abstract class AbstractLimitedSequence implements LimitedSequence, Serial
 		//Generate junction number
 		StringBuffer junction = new StringBuffer();
 		if(lastHashSize>0 && lastHashSize < maxHashSize) {
-			junction.append(getSequence(this.sequence[this.sequence.length-1], lastHashSize));
+			junction.append(getSequenceFromHash(this.sequence[this.sequence.length-1], lastHashSize));
 		}
 		
 		int firstPosAppend = 0;
@@ -144,7 +144,7 @@ public abstract class AbstractLimitedSequence implements LimitedSequence, Serial
 		StringBuffer buffer = new StringBuffer();
 		for(int i=relStart;i<relEnd;i++) {
 			int hashSize = getHashSize(i);
-			String s = String.valueOf(getSequence(sequence[i],hashSize));
+			String s = String.valueOf(getSequenceFromHash(sequence[i],hashSize));
 			int firstPos = maxHashSize*i;
 			int endPos = maxHashSize*i + hashSize ;
 			int firstSPos = 0;
@@ -183,7 +183,7 @@ public abstract class AbstractLimitedSequence implements LimitedSequence, Serial
 		int relPos = position/maxHashSize;
 		int subPos = position%maxHashSize;
 		int size = getHashSize(relPos);
-		char subSeq [] = getSequence(sequence[relPos], size);
+		char subSeq [] = getSequenceFromHash(sequence[relPos], size);
 		return subSeq[subPos];
 	}
 	/**
@@ -198,7 +198,7 @@ public abstract class AbstractLimitedSequence implements LimitedSequence, Serial
 		int relPos = position/maxHashSize;
 		int subPos = position%maxHashSize;
 		int size = getHashSize(relPos);
-		char subSeq [] = getSequence(sequence[relPos], size);
+		char subSeq [] = getSequenceFromHash(sequence[relPos], size);
 		if(subSeq[subPos] != c) {
 			subSeq[subPos] = c;
 			int hash = getHash(String.valueOf(subSeq), 0, subSeq.length);
@@ -218,8 +218,8 @@ public abstract class AbstractLimitedSequence implements LimitedSequence, Serial
 		}
 		int hs1 = this.getHashSize(i);
 		int hs2 = s2.getHashSize(i);
-		char [] c1 = getSequence(seq1[i], hs1);
-		char [] c2 = getSequence(seq2[i], hs2);
+		char [] c1 = getSequenceFromHash(seq1[i], hs1);
+		char [] c2 = getSequenceFromHash(seq2[i], hs2);
 		for(int j=0;j<c1.length && j<c2.length;j++) {
 			if(c1[j]!=c2[j]) return getAlphabetIndex(c1[j])-getAlphabetIndex(c2[j]);
 		}
@@ -233,7 +233,7 @@ public abstract class AbstractLimitedSequence implements LimitedSequence, Serial
 		StringBuffer answer = new StringBuffer();
 		for(int i=0;i<sequence.length;i++) {
 			int size = getHashSize(i);
-			answer.append(getSequence(sequence[i], size));
+			answer.append(getSequenceFromHash(sequence[i], size));
 		}
 		return answer.toString();
 	}
@@ -289,42 +289,39 @@ public abstract class AbstractLimitedSequence implements LimitedSequence, Serial
 	 * @return int Number representing the substring of seq between start (included) and end (not included)
 	 */
 	private int getHash(CharSequence seq, int start, int end) {
-		long number;
-		if(this instanceof DNASequence) number = DNASequence.getDNAHash(seq, start, end);
-		else number = getHash(seq, start, end, this);
-		return (int)(number+Integer.MIN_VALUE);
+		long code = getLongCode(seq, start, end);
+		if(code>=(2*(long)Integer.MAX_VALUE)) throw new IllegalArgumentException("Subsequence between "+start+" and "+end+" of sequence in class: "+this.getClass().getName()+" is not suitable for hashing. Seq "+seq.subSequence(start,end)+" code: "+code);
+		return (int)(code+Integer.MIN_VALUE);
 	}
 	/**
 	 * Gets the sequence corresponding with the given hash and the given size
 	 * @param number Hash number to decode
-	 * @param size Size of the sequence to return
+	 * @param length of the sequence to return
 	 * @return char[] Decoded String as a char array
 	 */
-	private char [] getSequence(int number, int size) {
+	private char [] getSequenceFromHash(int number, int length) {
 		long absoluteNumber = (long)number-(long)Integer.MIN_VALUE;
-		if(this instanceof DNASequence) return DNASequence.getDNASequence(absoluteNumber, size);
-		return getSequence(absoluteNumber, size,this);
+		return getSequenceFromCode(absoluteNumber, length);
 	}
 	
 	/**
-	 * Returns the number corresponding with a suitable size substring of the given sequence 
+	 * Returns the code corresponding with a suitable size substring of the given sequence 
 	 * @param seq Sequence to calculate hash
 	 * @param start Zero based start position
 	 * @param end Zero based end position
-	 * @param targetSeq AbstractLimitedSequence having the target alphabet
 	 * @return long Positive number representing the substring of seq between start (included) and end (not included)
 	 */
-	public static long getHash(CharSequence seq, int start, int end, AbstractLimitedSequence targetSeq) {
+	public long getLongCode(CharSequence seq, int start, int end) {
 		long number =0;
-		int alpSize = targetSeq.getAlphabetSize();
+		int alpSize = getAlphabetSize();
 		for(int i=start;i<end;i++) {
 			number*=alpSize;
-			int index = targetSeq.getAlphabetIndex(seq.charAt(i));
+			int index = getAlphabetIndex(seq.charAt(i));
 			if(index <0) {
-				index = targetSeq.getDefaultIndex();
+				index = getDefaultIndex();
 			}
 			if(index <0) {
-				throw new IllegalArgumentException("Character "+seq.charAt(i)+" not supported by sequence of type "+targetSeq.getClass().getName());
+				throw new IllegalArgumentException("Character "+seq.charAt(i)+" not supported by sequence of type "+getClass().getName());
 			}
 			number+=index;
 			if(number<0) throw new RuntimeException("Encoding reached a long negative number for sequence: "+seq+" between "+start+" and "+end);
@@ -333,35 +330,41 @@ public abstract class AbstractLimitedSequence implements LimitedSequence, Serial
 	}
 	
 	/**
-	 * Gets the sequence corresponding with the given hash and the given size
-	 * @param number Hash number to decode
-	 * @param size Size of the sequence to return
-	 * @param targetSeq AbstractLimitedSequence having the target alphabet
+	 * Gets the sequence corresponding with the given code and the given size
+	 * @param code Number to decode
+	 * @param length of the sequence to return
 	 * @return char[] Decoded String as a char array
 	 */
-	public static char [] getSequence(long number, int size, AbstractLimitedSequence targetSeq) {
-		char [] answer = new char[size];
-		int alpSize = targetSeq.getAlphabetSize();
-		for(int i=0;i<size;i++) {
+	public char [] getSequenceFromCode(long number, int length) {
+		char [] answer = new char[length];
+		int alpSize = getAlphabetSize();
+		for(int i=0;i<length;i++) {
 			int nextDigit = (int)(number%alpSize);
-			int index = size-i-1;
-			answer[index] = targetSeq.getAlphabetCharacter(nextDigit);
+			int index = length-i-1;
+			answer[index] = getAlphabetCharacter(nextDigit);
 			number = number/alpSize;
 		}
 		return answer;
 	}
-	
-	public static long getNextHash(long hash, int length, char nextCharacter, AbstractLimitedSequence targetSeq) {
-		int index = targetSeq.getAlphabetIndex(nextCharacter);
+	/**
+	 * Calculates the code corresponding to the sequence removing the first character of the
+	 * sequence represented by the given code and adding the given character at the end
+	 * @param code of the original short sequence
+	 * @param length of the original and of the new sequence
+	 * @param nextCharacter to append at the end of the new sequence
+	 * @return long encoding of the new sequence
+	 */
+	public long getNextCode(long code, int length, char nextCharacter) {
+		int index = getAlphabetIndex(nextCharacter);
 		if(index <0) {
-			index = targetSeq.getDefaultIndex();
+			index = getDefaultIndex();
 		}
 		if(index <0) {
-			throw new IllegalArgumentException("Character "+nextCharacter+" not supported by sequence of type "+targetSeq.getClass().getName());
+			throw new IllegalArgumentException("Character "+nextCharacter+" not supported by sequence of type "+getClass().getName());
 		}
-		int alpSize = targetSeq.getAlphabetSize();
+		int alpSize = getAlphabetSize();
 		long powerFirstChar = (long)Math.round(Math.pow(alpSize, length-1));
-		long answer = hash%powerFirstChar;
+		long answer = code%powerFirstChar;
 		answer*=alpSize;
 		answer+=index;
 		return answer;

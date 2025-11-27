@@ -35,6 +35,7 @@ public class ShortKmerCodesSampler {
 	private ShortKmerCodesHashFunction hashFunction;
 	private int kmerLength = DEF_KMER_LENGTH;
 	private int windowLength = DEF_WINDOW_LENGTH;
+	private LimitedSequence alphabetSequence = DNASequence.EMPTY_DNA_SEQUENCE;
 	
 	
 	
@@ -67,7 +68,7 @@ public class ShortKmerCodesSampler {
 	 */
 	public List<KmerCodesTableEntry> computeSequenceCodes(int sequenceId, String sequence,int start,int end) {
 		//new PrimeNumbers(1000000);
-		long [] segmentCodes = KmersExtractor.extractDNAKmerCodes(sequence, kmerLength, start, Math.min(sequence.length(),end+windowLength+kmerLength));
+		long [] segmentCodes = KmersExtractor.extractKmerCodes(sequence, kmerLength, start, Math.min(sequence.length(), end+windowLength+kmerLength),alphabetSequence,false);
 		List<KmerCodesTableEntry> selectedCodes = computeSequenceCodes(sequenceId, start, segmentCodes);
 		//System.out.println("Selected codes for sequence "+sequenceId+" from "+start+" to "+end+" Number of codes: "+selectedCodes.size()+" pct: "+(100*selectedCodes.size()/segmentCodes.length));
 		return selectedCodes;

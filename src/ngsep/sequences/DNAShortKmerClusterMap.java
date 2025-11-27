@@ -130,7 +130,7 @@ public class DNAShortKmerClusterMap implements KmersMap {
 		}
 		for(int i = 0; i < kmer.length(); i++) {
 			char bp = Character.toUpperCase(kmer.charAt(i));
-			if (!DNASequence.isInAlphabeth(bp)) {
+			if (!DNASequence.EMPTY_DNA_SEQUENCE.isInAlphabet(bp)) {
 				throw new RuntimeException("Non DNA kmer found " + kmer);
 			}
 			int ibp = DNASequence.BASES_STRING.indexOf(bp);

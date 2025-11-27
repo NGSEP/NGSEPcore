@@ -212,7 +212,7 @@ public class KmersMapAnalyzer {
 	private int addKmerCodes(int depth, long[] answer, int idxAnswer) {
 		List<CharSequence> kmersDepth = kmersMap.getKmersWithCount(depth);
 		for(CharSequence kmer:kmersDepth) {
-			long code = AbstractLimitedSequence.getHash(kmer, 0, kmer.length(), DNASequence.EMPTY_DNA_SEQUENCE);
+			long code = DNASequence.EMPTY_DNA_SEQUENCE.getLongCode(kmer, 0, kmer.length());
 			answer[idxAnswer] = code;
 			idxAnswer++;
 			if(idxAnswer==answer.length) return idxAnswer;

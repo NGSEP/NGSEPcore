@@ -92,7 +92,7 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 			if(domainsFinder==null) domainsFinder = baseFinder.clone();
 			assignFamily(ltrAnn, seq, domainsFinder);
 			findTargetSideDuplication(ltrAnn, seq);
-			if (start==debugPos) System.err.println("Assigned family for annotation at "+ltrAnn.getFirst()+" "+ltrAnn.getLast()+" inferred family: "+ltrAnn.getInferredFamily());
+			log.info("Assigned family for annotation at "+ltrAnn.getFirst()+" "+ltrAnn.getLast()+" inferred family: "+ltrAnn.getInferredFamily());
 			answer.add(ltrAnn);
 		}
 		return answer;
@@ -198,7 +198,7 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 	}
 	private void assignFamily(TransposableElementAnnotation ann, QualifiedSequence seq, HMMTransposonDomainsFinder domainsFinder) {
 		DNAMaskedSequence dnaTE = (DNAMaskedSequence) seq.getCharacters().subSequence(ann.getLeftEndRepeat()-1, ann.getRightStartRepeat());
-		System.err.println("Verifying family for TE at "+ann.getFirst()+" "+ann.getLast()+" internal: "+ann.getLeftEndRepeat()+" "+ann.getRightStartRepeat()+" seq len: "+dnaTE.length());
+		getLog().info("Verifying family for TE at "+ann.getFirst()+" "+ann.getLast()+" internal: "+ann.getLeftEndRepeat()+" "+ann.getRightStartRepeat()+" seq len: "+dnaTE.length());
 		domainsFinder.assignFamily(ann,dnaTE);
 	}
 	

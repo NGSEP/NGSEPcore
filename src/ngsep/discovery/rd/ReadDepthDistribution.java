@@ -157,7 +157,7 @@ public class ReadDepthDistribution {
 				int nBases = 0;
 				for(int j=0;j<binSize;j++) {
 					char base = Character.toUpperCase(binSequence.charAt(j)); 
-					if(DNASequence.isInAlphabeth(base)) {
+					if(DNASequence.EMPTY_DNA_SEQUENCE.isInAlphabet(base)) {
 						nBases++;
 						if(base == 'G' || base == 'C') {
 							gcContent++;

@@ -23,5 +23,5 @@ package ngsep.sequences;
  * @author Jorge Duitama
  */
 public interface ShortKmerCodesHashFunction {
-	public int getHash(long dnaHash);
+	public int getHash(long sequenceCode);
 }

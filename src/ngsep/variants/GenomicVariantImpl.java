@@ -255,7 +255,7 @@ public class GenomicVariantImpl implements GenomicVariant {
 		if(alleles.size()<2) return false;
 		for(String allele:alleles) {
 			if(allele.length()!=1) return false;
-			if(!DNASequence.isInAlphabeth(allele.charAt(0))) return false;
+			if(!DNASequence.EMPTY_DNA_SEQUENCE.isInAlphabet(allele.charAt(0))) return false;
 		}
 		return true;
 	}
