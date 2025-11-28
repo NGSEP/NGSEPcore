@@ -189,7 +189,7 @@ public class TransposableElementsFinder {
 		if(!runDeNovo && transposonsDatabaseFile==null) throw new IOException("The transposons database file is a required parameter unless the deNovo discovery is activated");
 		ReferenceGenome genome = new ReferenceGenome(inputFile);
 		List<TransposableElementAnnotation> transposonAnnotations = findTransposons(genome);
-		saveTransposonAnnotations(transposonAnnotations,outputPrefix+"_regions.txt");
+		saveTransposonAnnotations(transposonAnnotations,outputPrefix);
 		double seconds = (System.currentTimeMillis()-time);
 		seconds /=1000;
 		log.info("Process finished in "+seconds+" seconds");
@@ -534,19 +534,43 @@ public class TransposableElementsFinder {
 	 * @param outputFile name of the output file where the transposon annotation will be saved
 	 * @throws IOException catch the IOException thrown if the specified part of the file is locked or does not exist
 	 */
-	public void saveTransposonAnnotations(List<TransposableElementAnnotation> transposonAnnotations, String outputFile) throws IOException {
-		try (PrintStream outTransposon =  new PrintStream(outputFile)) {	
+	public void saveTransposonAnnotations(List<TransposableElementAnnotation> transposonAnnotations, String outputPrefix) throws IOException {
+		log.info("Printing regions file");
+		try (PrintStream outTransposon =  new PrintStream(outputPrefix+"_regions.txt")) {	
 			for(TransposableElementAnnotation t:transposonAnnotations) 
 			{
 				outTransposon.print(t.getSequenceName());
 				outTransposon.print("\t"+t.getFirst());
-				outTransposon.print("\t"+t.getLast()+"\t");
+				outTransposon.print("\t"+t.getLast());
 				outTransposon.print("\t"+(t.isNegativeStrand()?"-":"+"));
 				outTransposon.print("\t"+(t.getQueryName()!=null?t.getQueryName():"DeNovo"));
 				outTransposon.print("\t"+(t.getTaxonomy()!=null?t.getTaxonomy():"NA"));
 				outTransposon.print("\t"+(t.getSourceFamily()!=null?t.getSourceFamily():"NA"));
 				outTransposon.print("\t"+(t.getInferredFamily()!=null?t.getInferredFamily():"NA"));
 				//outTransposon.print("\t"+t.isBordersFixed());
+				outTransposon.println();
+			}
+		}
+		log.info("Printing gff file");
+		try (PrintStream outTransposon =  new PrintStream(outputPrefix+".gff")) {
+			outTransposon.println("##gff-version 3");
+			int i = 1;
+			for(TransposableElementAnnotation t:transposonAnnotations) 
+			{
+				String id =  "TE_"+i;
+				TransposableElementFamily family = t.getInferredFamily();
+				if(family == null) family = t.getSourceFamily();
+				outTransposon.print(t.getSequenceName());
+				outTransposon.print("\tNGSEP");
+				outTransposon.print("\t"+family);
+				outTransposon.print("\t"+t.getFirst());
+				outTransposon.print("\t"+t.getLast());
+				//TODO: Quality score
+				outTransposon.print("\t50");
+				outTransposon.print("\t"+(t.isNegativeStrand()?"-":"+"));
+				outTransposon.print("\t.");
+				outTransposon.print("\tID="+id);
+				if(t.getTsd()!=null) outTransposon.print(";tsd="+t.getTsd());
 				outTransposon.println();
 			}
 		}

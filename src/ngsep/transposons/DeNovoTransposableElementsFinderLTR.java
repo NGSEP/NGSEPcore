@@ -16,6 +16,7 @@ import ngsep.alignments.UngappedSearchHitsClusterBuilder;
 import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.AminoacidSequence;
 import ngsep.sequences.DNAMaskedSequence;
+import ngsep.sequences.DNASequence;
 import ngsep.sequences.DirectShortKmerCodesHashFunction;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.NaiveShortKmerCodesSamplingAlgorithm;
@@ -35,6 +36,7 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 	private List<TransposableElementAnnotation> predictedAnnotations = new ArrayList<TransposableElementAnnotation>();
 	private ShortKmerCodesTable aminoacidCodesTable;
 	private int aaKmerLength = 6;
+	private int maxDNAKmerHitsPerWindow = 4;
 	private int debugPos = -1;
 	
 	public DeNovoTransposableElementsFinderLTR () {
@@ -75,8 +77,11 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 			int i1 = entry.getKey();
 			List<Integer> hitPos = reverseMapF.get(entry.getValue());
 			if(hitPos.size()<2) continue;
+			//Filter for tandem repeats
+			if(hitPos.size()>maxDNAKmerHitsPerWindow) continue;
 			totalHitsMultihitKmers+=hitPos.size();
 			totalMultihitKmers++;
+			if (start==debugPos) System.err.println("Kmer of sequence. Start: "+(start+i1)+" kmer: "+new String(DNASequence.EMPTY_DNA_SEQUENCE.getSequenceFromCode(entry.getValue(), kmerLength))+" Hits: "+hitPos.size());
 			for(int i2:hitPos) {
 				if(i2<i1+500) continue;
 				UngappedSearchHit hit = new UngappedSearchHit(0, i2);
@@ -85,8 +90,7 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 				hits.add(hit);
 			}
 		}
-		//Filter for tandem repeat regions
-		if(totalHitsMultihitKmers>5*totalMultihitKmers) return answer;
+		log.info("Processing sequence. "+seq.getName()+" from "+start+" to "+end+" raw hits: "+totalHitsMultihitKmers+" total multihitKmers: "+totalMultihitKmers+" filtered hits: "+hits.size());
 		UngappedSearchHitsClusterBuilder builder = new UngappedSearchHitsClusterBuilder();
 		List<UngappedSearchHitsCluster> clusters = builder.clusterRegionKmerAlns(step,0, windowLength, hits);
 		if(clusters.size()==0) return answer;
@@ -157,8 +161,8 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 			}
 		}
 		if(tsd!=null) {
-			ltrAnn.setFirst(refStartLeft+tsdStartLeft+tsd.length());
-			ltrAnn.setLast(refStartRight+tsdStartRight-1);
+			ltrAnn.setFirst(refStartLeft+tsdStartLeft);
+			ltrAnn.setLast(refStartRight+tsdStartRight+tsd.length());
 			ltrAnn.setTsd(tsd);
 		}
 	}
@@ -304,6 +308,7 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 		String outPrefix = args[1];
 		DeNovoTransposableElementsFinderWindowSearch instance = new DeNovoTransposableElementsFinderLTR();
 		instance.setNumThreads(8);
+		((DeNovoTransposableElementsFinderLTR)instance).filterDomainCode = null;
 		List<TransposableElementAnnotation> anns = instance.findTransposons(genome);
 		try (PrintStream out=new PrintStream(outPrefix+"_regions.txt")) {
 			for(TransposableElementAnnotation ann:anns) {
