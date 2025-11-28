@@ -48,7 +48,8 @@ public class ReferenceGenomeFMIndex {
 		internalIndex = new FMIndex();
 		internalIndex.setMaxHitsQuery(MAX_HITS_QUERY);
 		QualifiedSequenceList sequences = genome.getSequencesList();
-		internalIndex.loadQualifiedSequences(sequences, log);
+		if(log!=null) internalIndex.setLog(log);
+		internalIndex.loadQualifiedSequences(sequences);
 	}
 
 	/**

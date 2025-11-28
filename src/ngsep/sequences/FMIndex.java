@@ -42,12 +42,22 @@ import ngsep.main.io.ConcatGZIPInputStream;
  */
 public class FMIndex
 {
+	private Logger log = Logger.getAnonymousLogger();
+	private Runtime runtime = Runtime.getRuntime();
 	private QualifiedSequenceList sequencesWithNames;
 	private List<Integer> sequenceLengths = new ArrayList<>();
 	private List<FMIndexSingleSequence> internalIndexes = new ArrayList<>();
 	private List<CombinedMultisequenceFMIndexMetadata> internalMetadata = new ArrayList<>();
 	private int maxHitsQuery = 100000;
 
+	
+	
+	public Logger getLog() {
+		return log;
+	}
+	public void setLog(Logger log) {
+		this.log = log;
+	}
 	public int getMaxHitsQuery() {
 		return maxHitsQuery;
 	}
@@ -59,8 +69,8 @@ public class FMIndex
 	 * Loads the sequences in the given list to allow searches from these sequences
 	 * @param sequences to add to the index. Each QualifiedSequence object in the list should have a name and its characters
 	 */
-	public void loadQualifiedSequences (List<QualifiedSequence> sequences, Logger log) {
-		Runtime runtime = Runtime.getRuntime();
+	public void loadQualifiedSequences (List<QualifiedSequence> sequences) {
+		
 		if(sequences instanceof QualifiedSequenceList) sequencesWithNames = (QualifiedSequenceList)sequences;
 		else {
 			sequencesWithNames = new QualifiedSequenceList();
@@ -70,18 +80,22 @@ public class FMIndex
 		CombinedMultisequenceFMIndexMetadata internalIdxMetadata = new CombinedMultisequenceFMIndexMetadata();
 		int nI=0;
 		int i=0;
+		int limitConcat = 100000000;
 		for(QualifiedSequence seq:sequences) {
-			String next = seq.getCharacters().toString();
-			if(nI>0 && internalSequence.length() + next.length() > 100000000) {
+			CharSequence qseq = seq.getCharacters();
+			if(qseq.length() > limitConcat) {
+				//Big sequences handling
+				CombinedMultisequenceFMIndexMetadata singleSequenceMetadata = new CombinedMultisequenceFMIndexMetadata();
+				singleSequenceMetadata.addInputSequence(i, qseq.length());
+				processInternalSequence(qseq.toString(), singleSequenceMetadata);
+				sequenceLengths.add(seq.getLength());
+				i++;
+				continue;
+			}
+			String next = qseq.toString();
+			if(nI>0 && internalSequence.length() + next.length() > limitConcat) {
 				if(log!=null) log.info("Building index for "+nI+" sequences. Internal sequence length: "+internalSequence.length());
-				long time = System.currentTimeMillis();
-				FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
-				index.setMaxHitsQuery(maxHitsQuery);
-				double usedMemory = runtime.totalMemory()-runtime.freeMemory();
-				usedMemory/=1000000000;
-				if(log!=null) log.info("Built index in "+((double)(System.currentTimeMillis()-time)/1000.0)+" seconds. RAM (Gb): "+usedMemory);
-				internalIndexes.add(index);
-				internalMetadata.add(internalIdxMetadata);
+				processInternalSequence(internalSequence, internalIdxMetadata);
 				internalSequence = new StringBuffer();
 				internalIdxMetadata = new CombinedMultisequenceFMIndexMetadata();
 				nI=0;
@@ -94,15 +108,18 @@ public class FMIndex
 		}
 		if(nI>0) {
 			if(log!=null) log.info("Building index for "+nI+" sequences. Internal sequence length: "+internalSequence.length());
-			long time = System.currentTimeMillis();
-			FMIndexSingleSequence index = new FMIndexSingleSequence(internalSequence);
-			index.setMaxHitsQuery(maxHitsQuery);
-			double usedMemory = runtime.totalMemory()-runtime.freeMemory();
-			usedMemory/=1000000000;
-			if(log!=null) log.info("Built index in "+((double)(System.currentTimeMillis()-time)/1000.0)+" seconds. RAM (Gb): "+usedMemory);
-			internalIndexes.add(index);
-			internalMetadata.add(internalIdxMetadata);
+			processInternalSequence(internalSequence, internalIdxMetadata);
 		}
+	}
+	private void processInternalSequence(CharSequence sequence, CombinedMultisequenceFMIndexMetadata internalIdxMetadata) {
+		long time = System.currentTimeMillis();
+		FMIndexSingleSequence index = new FMIndexSingleSequence(sequence);
+		index.setMaxHitsQuery(maxHitsQuery);
+		double usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		usedMemory/=1000000000;
+		if(log!=null) log.info("Built index in "+((double)(System.currentTimeMillis()-time)/1000.0)+" seconds. RAM (Gb): "+usedMemory);
+		internalIndexes.add(index);
+		internalMetadata.add(internalIdxMetadata);
 	}
 	/**
 	 * Searches the given sequence against this FMindex.

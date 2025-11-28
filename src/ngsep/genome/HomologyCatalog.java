@@ -28,7 +28,6 @@ import java.util.Map;
 import ngsep.sequences.AminoacidSequence;
 import ngsep.sequences.FMIndex;
 import ngsep.sequences.QualifiedSequence;
-import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.transcriptome.ProteinTranslator;
 
@@ -47,18 +46,6 @@ public class HomologyCatalog {
 		for(HomologyUnit unit: units) {
 			homologyUnitsMap.put(unit.getUniqueKey(), unit);
 		}
-		//buildFMIndex();
-	}
-	private void buildFMIndex() {
-		indexHomologyUnits = new FMIndex();
-		QualifiedSequenceList unitSequences = new QualifiedSequenceList();
-		for (HomologyUnit ql:homologyUnitsMap.values()) {
-			CharSequence unitSequence = ql.getUnitSequence();
-			String unitId = ql.getId();
-			QualifiedSequence qualifiedSequence = new QualifiedSequence(unitId, unitSequence);
-			unitSequences.add(qualifiedSequence);
-		}
-		indexHomologyUnits.loadQualifiedSequences(unitSequences, null);
 	}
 	
 	/**
