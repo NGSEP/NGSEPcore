@@ -14,18 +14,27 @@ import ngsep.alignments.PairwiseAlignment;
 import ngsep.alignments.UngappedSearchHitsCluster;
 import ngsep.alignments.UngappedSearchHitsClusterBuilder;
 import ngsep.genome.ReferenceGenome;
+import ngsep.sequences.AminoacidSequence;
 import ngsep.sequences.DNAMaskedSequence;
+import ngsep.sequences.DirectShortKmerCodesHashFunction;
 import ngsep.sequences.KmersExtractor;
+import ngsep.sequences.NaiveShortKmerCodesSamplingAlgorithm;
 import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.ShortKmerCodesSampler;
+import ngsep.sequences.ShortKmerCodesTable;
 import ngsep.sequences.UngappedSearchHit;
 import ngsep.sequences.io.FastaSequencesHandler;
+import ngsep.transcriptome.ProteinTranslator;
 
 public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableElementsFinderWindowSearch {
 	private TransposableElementFamily filterOrder = TransposableElementFamily.LTR_UNKNOWN;
 	//private TransposableElementFamily filterOrder = null;
 	private String filterDomainCode = "GAG";
 	private HMMTransposonDomainsFinder baseFinder;
-	
+	private List<String> testedAminoacids = new ArrayList<String>();
+	private List<TransposableElementAnnotation> predictedAnnotations = new ArrayList<TransposableElementAnnotation>();
+	private ShortKmerCodesTable aminoacidCodesTable;
+	private int aaKmerLength = 6;
 	private int debugPos = -1;
 	
 	public DeNovoTransposableElementsFinderLTR () {
@@ -40,6 +49,10 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 		domainsLTR.add("END");
 		domainsLTR.add("RH");
 		baseFinder.loadHMMsFromClasspath(domainsLTR);
+		ShortKmerCodesSampler sampler = new ShortKmerCodesSampler(new NaiveShortKmerCodesSamplingAlgorithm(),new DirectShortKmerCodesHashFunction());
+		sampler.setKmerLength(aaKmerLength);
+		sampler.setAlphabetSequence(AminoacidSequence.EMPTY_AA_SEQUENCE);
+		aminoacidCodesTable = new ShortKmerCodesTable(sampler);
 	}
 	
 	protected List<TransposableElementAnnotation> findTransposons(QualifiedSequence seq, int start, int end, List<TransposableElementAnnotation> overlappingEvents) {
@@ -197,12 +210,76 @@ public class DeNovoTransposableElementsFinderLTR extends DeNovoTransposableEleme
 		return ann;
 	}
 	private void assignFamily(TransposableElementAnnotation ann, QualifiedSequence seq, HMMTransposonDomainsFinder domainsFinder) {
+		Logger log = getLog();
 		DNAMaskedSequence dnaTE = (DNAMaskedSequence) seq.getCharacters().subSequence(ann.getLeftEndRepeat()-1, ann.getRightStartRepeat());
-		getLog().info("Verifying family for TE at "+ann.getFirst()+" "+ann.getLast()+" internal: "+ann.getLeftEndRepeat()+" "+ann.getRightStartRepeat()+" seq len: "+dnaTE.length());
+		if (assignFamilyFromCloseHomology(ann,dnaTE)) {
+			log.info("Assigned by similarity family for TE at "+ann.getFirst()+" "+ann.getLast()+" internal: "+ann.getLeftEndRepeat()+" "+ann.getRightStartRepeat()+" seq len: "+dnaTE.length());
+			return;
+		}
+		log.info("Verifying family for TE at "+ann.getFirst()+" "+ann.getLast()+" internal: "+ann.getLeftEndRepeat()+" "+ann.getRightStartRepeat()+" seq len: "+dnaTE.length());
 		domainsFinder.assignFamily(ann,dnaTE);
+		TransposableElementFamily family = ann.getInferredFamily();
+		if(family!=null) {
+			String orf;
+			if(ann.isNegativeStrand()) orf = ProteinTranslator.getInstance().calculateORFConcat(dnaTE.getReverseComplement(),50);
+			else orf = ProteinTranslator.getInstance().calculateORFConcat(dnaTE,50);
+			registerProtein(orf, ann);
+		}
 	}
 	
 	
+	private boolean assignFamilyFromCloseHomology(TransposableElementAnnotation ann, DNAMaskedSequence dnaTE) {
+		String orfForward = ProteinTranslator.getInstance().calculateORFConcat(dnaTE,50);
+		TransposableElementAnnotation relatedAnn = getAnnFromCloseHomology(orfForward);
+		if(relatedAnn != null) {
+			ann.setInferredFamily(relatedAnn.getInferredFamily());
+			ann.setDomainAlignments(relatedAnn.getDomainAlignments());
+			getLog().info("Assigned family for ann at "+ann.getSequenceName()+":"+ann.getFirst()+" by homology with ann at "+relatedAnn.getSequenceName()+":"+relatedAnn.getFirst()+" family: "+ann.getInferredFamily());
+			registerProtein(orfForward,ann);
+			return true;
+		}
+		dnaTE = dnaTE.getReverseComplement();
+		String orfReverse = ProteinTranslator.getInstance().calculateORFConcat(dnaTE,50);
+		relatedAnn = getAnnFromCloseHomology(orfReverse);
+		if(relatedAnn != null) {
+			ann.setInferredFamily(relatedAnn.getInferredFamily());
+			ann.setDomainAlignments(relatedAnn.getDomainAlignments());
+			ann.setNegativeStrand(true);
+			getLog().info("Assigned family for ann at "+ann.getSequenceName()+":"+ann.getFirst()+" by homology with ann at "+relatedAnn.getSequenceName()+":"+relatedAnn.getFirst()+" family: "+ann.getInferredFamily());
+			registerProtein(orfReverse,ann);
+			return true;
+		}
+		return false;
+	}
+	private TransposableElementAnnotation getAnnFromCloseHomology(String orf) {
+		if(orf.length()<50) return null;
+		Map<Integer,List<UngappedSearchHit>> hits = aminoacidCodesTable.match(-1, orf);
+		int maxI = -1;
+		int max = 0;
+		for(Map.Entry<Integer,List<UngappedSearchHit>> entry:hits.entrySet()) {
+			int n = entry.getValue().size();
+			if(n>max) {
+				max = n;
+				maxI = entry.getKey();
+			}
+		}
+		//System.err.println("Query orf: "+orf+" subjectHits: "+hits.size()+" max: "+max);
+		if(max>0.4*orf.length()) {
+			return predictedAnnotations.get(maxI);
+		}
+		return null;
+	}
+	private void registerProtein(String orf, TransposableElementAnnotation ann) {
+		int id;
+		synchronized (testedAminoacids) {
+			id = testedAminoacids.size();
+			testedAminoacids.add(orf);
+			predictedAnnotations.add(ann);
+		}
+		aminoacidCodesTable.addSequence(id, orf);
+		//System.err.println("Registered orf: "+orf+" codes table: "+aminoacidCodesTable.getTotalEntries());
+	}
+
 	protected boolean passFilters(TransposableElementAnnotation ann) {
 		if(ann.getInferredFamily()==null) return false;
 		if(filterOrder!=null) {

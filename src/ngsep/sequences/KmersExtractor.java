@@ -544,6 +544,8 @@ public class KmersExtractor {
 	public static long[] extractKmerCodes (CharSequence source, int kmerLength, int start, int end, LimitedSequence targetSeq, boolean ignoreLowComplexity) {
 		validateLimits(source, start, end);
 		int n = source.length();
+		int nDebug = -1;
+		boolean freeText = !(targetSeq instanceof DNASequence);
 		//WARN: Big Maps have concurrency issues
 		//List<Long> kmerCodes = new ArrayList<Long>();
 		//Map<Integer,Long> kmerCodesMap = new LinkedHashMap<Integer, Long>();
@@ -558,8 +560,9 @@ public class KmersExtractor {
 			long code;
 			if(lastCode==-1) {
 				CharSequence kmer = source.subSequence(i, i+kmerLength);
-				if (!passFilters(kmer, false, ignoreLowComplexity)) continue;
+				if (!passFilters(kmer, freeText, ignoreLowComplexity)) continue;
 				code = targetSeq.getLongCode(kmer, 0, kmerLength);
+				if(n==nDebug) System.err.println("Kmer: "+kmer+" code: "+code);
 			} else {
 				char lastCharNextKmer = source.charAt(i+kmerLength-1);
 				if(!targetSeq.isInAlphabet(lastCharNextKmer)) {

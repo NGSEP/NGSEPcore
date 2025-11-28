@@ -188,6 +188,7 @@ public class DNASequence extends AbstractLimitedSequence{
 	 * @param args
 	 */
 	public static void main(String[] args) {
+		DNASequence dnaT = new DNASequence("TTTTTTTTTTTTTTTTTTTTTTT");
 		StringBuilder randomSequence = new StringBuilder();
 		Random r = new Random();
 		int length = r.nextInt(10000)+100000;

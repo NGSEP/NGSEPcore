@@ -162,9 +162,8 @@ public class ShortKmerCodesTable {
 		log.info("Resized codes table. New capacity: "+sequencesByCodeTable.length);
 	}
 	private void addToTable(int row, long value) {
-		long [] codeEntries = sequencesByCodeTable[row];
-		String lock = locks[row]; 
-		synchronized (lock) {
+		synchronized (locks[row]) {
+			long [] codeEntries = sequencesByCodeTable[row]; 
 			int column = sequencesByCodeTableColumnLengths[row];
 			if(column == codeEntries.length ) {
 				//Resize entries

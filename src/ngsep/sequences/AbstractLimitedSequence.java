@@ -290,7 +290,7 @@ public abstract class AbstractLimitedSequence implements LimitedSequence, Serial
 	 */
 	private int getHash(CharSequence seq, int start, int end) {
 		long code = getLongCode(seq, start, end);
-		if(code>=(2*(long)Integer.MAX_VALUE)) throw new IllegalArgumentException("Subsequence between "+start+" and "+end+" of sequence in class: "+this.getClass().getName()+" is not suitable for hashing. Seq "+seq.subSequence(start,end)+" code: "+code);
+		if(code>=(-2*(long)Integer.MIN_VALUE)) throw new IllegalArgumentException("Subsequence between "+start+" and "+end+" of sequence in class: "+this.getClass().getName()+" is not suitable for hashing. Seq "+seq.subSequence(start,end)+" code: "+code);
 		return (int)(code+Integer.MIN_VALUE);
 	}
 	/**

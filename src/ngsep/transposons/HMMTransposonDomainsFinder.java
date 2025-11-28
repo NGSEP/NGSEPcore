@@ -135,73 +135,24 @@ public class HMMTransposonDomainsFinder {
 	}
 	
 	private List<TransposonDomainAlignment> findDomainsFromORFs(DNAMaskedSequence dnaSequence, boolean reverse) {
-		Map<Integer,String> orfs = calculateORFConcat(dnaSequence);
+		String orf = ProteinTranslator.getInstance().calculateORFConcat(dnaSequence,50);
 		List<TransposonDomainAlignment> answer = new ArrayList<TransposonDomainAlignment>();
-		for(Map.Entry<Integer, String> orf:orfs.entrySet()) {
-			int startDNA = orf.getKey();
-			String aaSeq = orf.getValue();
-			//if(aaSeq.length()>1000) System.err.println("Testing orf at start: "+startDNA+" Seq len: "+aaSeq.length()+" seq: "+aaSeq+ " reverse: "+reverse+" numHMMS: "+hmms.size());
-			for (ProfileAlignmentHMM hmm :hmms) {
-				//System.out.println("Testing orf at start: "+startDNA+" Next HMM: "+hmm.getId()+" code "+hmm.getDomainCode()+ " length "+ hmm.getSteps());
-				ProfileAlignmentDomain aaDomain = hmm.findDomain(aaSeq);
-				if(aaDomain!=null) {
-					TransposonDomainAlignment domain = buildTEDomain(dnaSequence, startDNA, aaDomain, reverse);
-					//System.out.println("Found domain at: "+startDNA+" HMM: "+hmm.getId()+" code "+hmm.getDomainCode()+" protein limits: "+aaDomain.getStart()+" "+aaDomain.getEnd()+" pos domain: "+domain.getStart());
-					answer.add(domain);
-				}
+		//TODO: Real coordinate
+		int startDNA = 0;
+		String aaSeq = orf;
+		//if(aaSeq.length()>1000) System.err.println("Testing orf at start: "+startDNA+" Seq len: "+aaSeq.length()+" seq: "+aaSeq+ " reverse: "+reverse+" numHMMS: "+hmms.size());
+		for (ProfileAlignmentHMM hmm :hmms) {
+			//System.out.println("Testing orf at start: "+startDNA+" Next HMM: "+hmm.getId()+" code "+hmm.getDomainCode()+ " length "+ hmm.getSteps());
+			ProfileAlignmentDomain aaDomain = hmm.findDomain(aaSeq);
+			if(aaDomain!=null) {
+				TransposonDomainAlignment domain = buildTEDomain(dnaSequence, startDNA, aaDomain, reverse);
+				//System.out.println("Found domain at: "+startDNA+" HMM: "+hmm.getId()+" code "+hmm.getDomainCode()+" protein limits: "+aaDomain.getStart()+" "+aaDomain.getEnd()+" pos domain: "+domain.getStart());
+				answer.add(domain);
 			}
 		}
 		return sortAndFilterDomains(answer);
 	}
-	private Map<Integer, String> calculateORFs(CharSequence seq) {
-		Map<Integer, String> answer = new LinkedHashMap<Integer, String>();
-		ProteinTranslator translator = ProteinTranslator.getInstance();
-		int n = seq.length();
-		int i=0;
-		while(i<n) {
-			String orf = translator.getProteinSequence(seq, i);
-			if(orf.length()>50) {
-				answer.put(i, orf);
-				i+=3*orf.length();
-			} else {
-				i++;
-			}
-		}
-		return answer;
-	}
-	private Map<Integer, String> calculateORFConcat(CharSequence seq) {
-		Map<Integer, String> answer = new LinkedHashMap<Integer, String>();
-		int i = 0;
-		int iA = 0;
-		StringBuilder orfConcatenated = new StringBuilder();
-		Map<Integer, String> independentORFs = calculateORFs(seq);
-		for(Map.Entry<Integer, String> entry:independentORFs.entrySet()) {
-			int start = entry.getKey();
-			String orf = entry.getValue();
-			if(start  - i > 20) {
-				String orfInternal = calculateLongestORF(seq.subSequence(i, start));
-				orfConcatenated.append(orfInternal);
-			}
-			if(i==0) iA =i-orfConcatenated.length(); 
-			i=start;
-			orfConcatenated.append(orf);
-			i+=3*orf.length();
-		}
-		answer.put(iA,orfConcatenated.toString());
-		return answer;
-	}
-	private String calculateLongestORF(CharSequence seq) {
-		Map<Integer, String> orfs = calculateORFs(seq);
-		String answer = "";
-		int max = 0;
-		for (String orf:orfs.values()) {
-			if(orf.length()>max) {
-				max = orf.length();
-				answer = orf;
-			}
-		}
-		return answer;
-	}
+	
 	private TransposonDomainAlignment buildTEDomain(DNAMaskedSequence dnaSequence, int startDNA, ProfileAlignmentDomain aaDomain, boolean reverseStrand) {
 		int start = startDNA+3*aaDomain.getStart();
 		int end = startDNA+3*aaDomain.getEnd();

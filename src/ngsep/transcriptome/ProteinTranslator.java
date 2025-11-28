@@ -20,6 +20,8 @@
 package ngsep.transcriptome;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.ResourceBundle;
 /**
  * Class that implements translation from CDNA sequences to proteins
@@ -177,6 +179,51 @@ public class ProteinTranslator {
 		sb.append(base2);
 		sb.append(base3);
 		return sb.toString();
+	}
+	public Map<Integer, String> calculateORFs(CharSequence seq, int minLength) {
+		Map<Integer, String> answer = new LinkedHashMap<Integer, String>();
+		ProteinTranslator translator = ProteinTranslator.getInstance();
+		int n = seq.length();
+		int i=0;
+		while(i<n) {
+			String orf = translator.getProteinSequence(seq, i);
+			if(orf.length()>50) {
+				answer.put(i, orf);
+				i+=3*orf.length();
+			} else {
+				i++;
+			}
+		}
+		return answer;
+	}
+	public String calculateORFConcat(CharSequence seq, int minLength) {
+		int i = 0;
+		StringBuilder orfConcatenated = new StringBuilder();
+		Map<Integer, String> independentORFs = calculateORFs(seq, minLength);
+		for(Map.Entry<Integer, String> entry:independentORFs.entrySet()) {
+			int start = entry.getKey();
+			String orf = entry.getValue();
+			if(start  - i > minLength) {
+				String orfInternal = calculateLongestORF(seq.subSequence(i, start), minLength);
+				orfConcatenated.append(orfInternal);
+			}
+			i=start;
+			orfConcatenated.append(orf);
+			i+=3*orf.length();
+		}
+		return orfConcatenated.toString();
+	}
+	private String calculateLongestORF(CharSequence seq, int minLength) {
+		Map<Integer, String> orfs = calculateORFs(seq,minLength);
+		String answer = "";
+		int max = 0;
+		for (String orf:orfs.values()) {
+			if(orf.length()>max) {
+				max = orf.length();
+				answer = orf;
+			}
+		}
+		return answer;
 	}
 	
 

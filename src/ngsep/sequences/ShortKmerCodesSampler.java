@@ -37,7 +37,14 @@ public class ShortKmerCodesSampler {
 	private int windowLength = DEF_WINDOW_LENGTH;
 	private LimitedSequence alphabetSequence = DNASequence.EMPTY_DNA_SEQUENCE;
 	
-	
+	public ShortKmerCodesSampler () {
+		this.algorithm = new MinimapShortKmerCodesSamplingAlgorithm();
+		this.hashFunction = new MinimapShortKmerCodesHashFunction();
+	}
+	public ShortKmerCodesSampler(ShortKmerCodesSamplingAlgorithm algorithm, ShortKmerCodesHashFunction hashFunction) {
+		this.algorithm = algorithm;
+		this.hashFunction = hashFunction;
+	}
 	
 	public int getKmerLength() {
 		return kmerLength;
@@ -51,13 +58,12 @@ public class ShortKmerCodesSampler {
 	public void setWindowLength(int windowLength) {
 		this.windowLength = windowLength;
 	}
-	public ShortKmerCodesSampler () {
-		this.algorithm = new MinimapShortKmerCodesSamplingAlgorithm();
-		this.hashFunction = new MinimapShortKmerCodesHashFunction();
+	
+	public LimitedSequence getAlphabetSequence() {
+		return alphabetSequence;
 	}
-	public ShortKmerCodesSampler(ShortKmerCodesSamplingAlgorithm algorithm, ShortKmerCodesHashFunction hashFunction) {
-		this.algorithm = algorithm;
-		this.hashFunction = hashFunction;
+	public void setAlphabetSequence(LimitedSequence alphabetSequence) {
+		this.alphabetSequence = alphabetSequence;
 	}
 
 	/**
@@ -70,7 +76,7 @@ public class ShortKmerCodesSampler {
 		//new PrimeNumbers(1000000);
 		long [] segmentCodes = KmersExtractor.extractKmerCodes(sequence, kmerLength, start, Math.min(sequence.length(), end+windowLength+kmerLength),alphabetSequence,false);
 		List<KmerCodesTableEntry> selectedCodes = computeSequenceCodes(sequenceId, start, segmentCodes);
-		//System.out.println("Selected codes for sequence "+sequenceId+" from "+start+" to "+end+" Number of codes: "+selectedCodes.size()+" pct: "+(100*selectedCodes.size()/segmentCodes.length));
+		//System.err.println("Selected codes for sequence "+sequenceId+" from "+start+" to "+end+" kmer length: "+kmerLength+" Initial codes: "+segmentCodes.length+" Number of codes: "+selectedCodes.size()+" pct: "+(100*selectedCodes.size()/segmentCodes.length));
 		return selectedCodes;
 	}
 	public List<KmerCodesTableEntry> computeSequenceCodes(int sequenceId, int start, long[] segmentCodes) {
@@ -86,6 +92,7 @@ public class ShortKmerCodesSampler {
 		if(sequenceId==debugIdx) System.err.println("Calculated "+segmentCodes.length+" hash codes");
 		boolean [] selected = algorithm.sample(hashcodes);
 		for(int i=0;i<hashcodes.length;i++) {
+			if(sequenceId==debugIdx) System.err.println("Kmer: "+new String (alphabetSequence.getSequenceFromCode(segmentCodes[i], kmerLength))+" Hash "+hashcodes[i]+" selected: "+selected[i]);
 			if(selected[i]) {
 				long originalCode = segmentCodes[i];
 				int globalStart = start+i;
