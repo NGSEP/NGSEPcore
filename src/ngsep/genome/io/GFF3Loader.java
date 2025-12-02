@@ -33,6 +33,10 @@ import ngsep.main.io.ParseUtils;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 
+/**
+ * Generic loader for files in gff3 format
+ * @author Jorge Duitama
+ */
 public class GFF3Loader {
 	private Logger log = Logger.getAnonymousLogger();
 	private QualifiedSequenceList sequenceNames;

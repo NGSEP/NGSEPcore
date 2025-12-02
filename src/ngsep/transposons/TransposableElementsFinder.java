@@ -42,6 +42,7 @@ import ngsep.main.ProgressNotifier;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
+import ngsep.transposons.io.GFFTransposableElementsWriter;
 import ngsep.transposons.io.TransposableElementLibraryHandler;
 
 /**
@@ -392,7 +393,8 @@ public class TransposableElementsFinder {
 		alignedTransposon.setNegativeStrand(negativeStrand);
 		alignedTransposon.setCount(cluster.getCountKmerHitsCluster());
 		alignedTransposon.setSource(transposon);
-		alignedTransposon.setRepeatLimits(first+transposon.getLeftEndRepeat(), first+transposon.getRightStartRepeat(), transposon.getOrientation());
+		//TODO: Check structure of aligned TEs
+		//alignedTransposon.setRepeatLimits(first+transposon.getLeftEndRepeat(), first+transposon.getRightStartRepeat(), transposon.getOrientation());
 		return alignedTransposon;
 	}
 	private void logClusters(ReferenceGenome genome, TransposableElement transposon, List<UngappedSearchHitsCluster> clusters) {
@@ -552,28 +554,8 @@ public class TransposableElementsFinder {
 			}
 		}
 		log.info("Printing gff file");
-		try (PrintStream outTransposon =  new PrintStream(outputPrefix+".gff")) {
-			outTransposon.println("##gff-version 3");
-			int i = 1;
-			for(TransposableElementAnnotation t:transposonAnnotations) 
-			{
-				String id =  "TE_"+i;
-				TransposableElementFamily family = t.getInferredFamily();
-				if(family == null) family = t.getSourceFamily();
-				outTransposon.print(t.getSequenceName());
-				outTransposon.print("\tNGSEP");
-				outTransposon.print("\t"+family);
-				outTransposon.print("\t"+t.getFirst());
-				outTransposon.print("\t"+t.getLast());
-				//TODO: Quality score
-				outTransposon.print("\t50");
-				outTransposon.print("\t"+(t.isNegativeStrand()?"-":"+"));
-				outTransposon.print("\t.");
-				outTransposon.print("\tID="+id);
-				if(t.getTsd()!=null) outTransposon.print(";tsd="+t.getTsd());
-				outTransposon.println();
-			}
-		}
+		GFFTransposableElementsWriter writer = new GFFTransposableElementsWriter();
+		writer.printGFF(transposonAnnotations, outputPrefix+".gff");
 	}
 }
 	

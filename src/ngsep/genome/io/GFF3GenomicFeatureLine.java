@@ -42,10 +42,15 @@ public class GFF3GenomicFeatureLine implements GenomicRegion {
 	public static final String FEATURE_TYPE_POLYPEPTIDE = "polypeptide";
 	public static final String FEATURE_TYPE_SIMILARITY = "similarity";
 	public static final String FEATURE_TYPE_PROTEIN_MATCH = "protein_match";
+	public static final String FEATURE_TYPE_REPEAT_REGION = "repeat_region";
+	public static final String FEATURE_TYPE_TSD = "target_site_duplication";
+	public static final String FEATURE_TYPE_5PLTR = "five_prime_LTR";
+	public static final String FEATURE_TYPE_3PLTR = "three_prime_LTR";
+	public static final String FEATURE_TYPE_TRANSPOSON = "transposable_element";
 	
-	public static final String [] supportedFeatureTypes = {FEATURE_TYPE_GENE,FEATURE_TYPE_PCGENE, FEATURE_TYPE_PSEUDOGENE, FEATURE_TYPE_CDS,FEATURE_TYPE_MRNA,FEATURE_TYPE_TRGENE,FEATURE_TYPE_5PUTR,FEATURE_TYPE_3PUTR, FEATURE_TYPE_SIMILARITY};
+	public static final String [] supportedFeatureTypes = {FEATURE_TYPE_GENE,FEATURE_TYPE_PCGENE, FEATURE_TYPE_PSEUDOGENE, FEATURE_TYPE_CDS,FEATURE_TYPE_MRNA,FEATURE_TYPE_TRGENE,FEATURE_TYPE_5PUTR,FEATURE_TYPE_3PUTR, FEATURE_TYPE_SIMILARITY,FEATURE_TYPE_REPEAT_REGION,FEATURE_TYPE_TSD,FEATURE_TYPE_5PLTR,FEATURE_TYPE_3PLTR,FEATURE_TYPE_TRANSPOSON};
 	//TODO: Use a file resource
-	public static final String [] supportedFeatureTypesSOFAIDs = {"SO:0000704","","SO:0000336","SO:0000316","SO:0000234","SO:0000111","SO:0000204","SO:0000205",""};
+	public static final String [] supportedFeatureTypesSOFAIDs = {"SO:0000704","","SO:0000336","SO:0000316","SO:0000234","SO:0000111","SO:0000204","SO:0000205","","SO:0000657","SO:0000434","SO:0000425","SO:0000426","SO:0000101"};
 	//Predefined attributes according to the gff3 specification
 	public static final String ATTRIBUTE_ID = "ID";
 	public static final String ATTRIBUTE_NAME = "Name";
@@ -66,6 +71,7 @@ public class GFF3GenomicFeatureLine implements GenomicRegion {
 	private String type;
 	private int first;
 	private int last;
+	private int quality = -1;
 	private boolean negativeStrand=false;
 	private byte phase = -1;
 	private int lineNumber = 0;
@@ -98,7 +104,19 @@ public class GFF3GenomicFeatureLine implements GenomicRegion {
 	public String getSource() {
 		return source;
 	}
+	public void setSource(String source) {
+		this.source = source;
+	}
 	
+	
+	public int getQuality() {
+		return quality;
+	}
+
+	public void setQuality(int quality) {
+		this.quality = quality;
+	}
+
 	public boolean isNegativeStrand() {
 		return negativeStrand;
 	}
@@ -119,9 +137,7 @@ public class GFF3GenomicFeatureLine implements GenomicRegion {
 	public String getAnnotation(String tag) {
 		return annotations.get(tag);
 	}
-	public void setSource(String source) {
-		this.source = source;
-	}
+	
 	public void setNegativeStrand(boolean negativeStrand) {
 		this.negativeStrand = negativeStrand;
 	}
@@ -133,6 +149,9 @@ public class GFF3GenomicFeatureLine implements GenomicRegion {
 	}
 	public String getId() {
 		return annotations.get(ATTRIBUTE_ID);
+	}
+	public void setId(String id) {
+		annotations.put(ATTRIBUTE_ID, id);
 	}
 	public String getName() {
 		return annotations.get(ATTRIBUTE_NAME);
