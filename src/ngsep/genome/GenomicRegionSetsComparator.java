@@ -61,11 +61,11 @@ public class GenomicRegionSetsComparator {
 		regionSet2.addAll(fh.loadRegions(filename2));
 		String outPrefix = args[3];
 		if(args.length>4) instance.maxPCT = Double.parseDouble(args[4]);
-		int [] stats1;
+		long [] stats1;
 		try (PrintStream out1 = new PrintStream(outPrefix+"_overlapSet1.txt")) {
 			stats1 = instance.calculateOverlap(regionSet1.asList(),regionSet2,out1);
 		}
-		int [] stats2;
+		long [] stats2;
 		try (PrintStream out2 = new PrintStream(outPrefix+"_overlapSet2.txt")) {
 			stats2 = instance.calculateOverlap(regionSet2.asList(),regionSet1,out2);
 		}
@@ -78,9 +78,9 @@ public class GenomicRegionSetsComparator {
 		
 	}
 
-	private int[] calculateOverlap(List<GenomicRegion> statsRegions, GenomicRegionSortedCollection<GenomicRegion> queryRegions, PrintStream out) {
-		int totalStats = 0;
-		int coveredStats = 0;
+	private long[] calculateOverlap(List<GenomicRegion> statsRegions, GenomicRegionSortedCollection<GenomicRegion> queryRegions, PrintStream out) {
+		long totalStats = 0;
+		long coveredStats = 0;
 		for(GenomicRegion r:statsRegions) {
 			totalStats+=r.length();
 			GenomicRegionSortedCollection<GenomicRegion> overlapSet = queryRegions.findSpanningRegions(r);
@@ -114,7 +114,7 @@ public class GenomicRegionSetsComparator {
 				out.println(r.getSequenceName()+"\t"+r.getFirst()+"\t"+r.getLast()+"\t"+r.length()+"\t"+lengthRegMaxOverlap+"\t"+maxOverlap+"\t"+pct1+"\t"+pct2+"\t"+pct3);
 			}
 		}
-		int [] answer = {totalStats,coveredStats};
+		long [] answer = {totalStats,coveredStats};
 		return answer;
 	}
 }
