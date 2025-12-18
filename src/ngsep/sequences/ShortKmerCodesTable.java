@@ -66,7 +66,7 @@ public class ShortKmerCodesTable {
 	
 	
 	public ShortKmerCodesTable(ShortKmerCodesSampler sampler) {
-		this(sampler,1000, false);
+		this(sampler,100000, false);
 	}
 	public ShortKmerCodesTable(ShortKmerCodesSampler sampler, int capacity, boolean useThreadToAddCodes) {
 		this.codesSampler = sampler;
@@ -124,9 +124,10 @@ public class ShortKmerCodesTable {
 	}
 	
 	private void addCodeSequence (long code, Long entry) {
-		Integer row = matrixRowMap.get(code);
-		if(row==null) {
-			synchronized (matrixRowMap) {
+		Integer row;
+		synchronized (matrixRowMap) {
+			row = matrixRowMap.get(code);
+			if(row==null) {
 				row = size();
 				if(row == Integer.MAX_VALUE) {
 					log.warning("Reached maximum number of minimizers that can be saved "+row);
@@ -144,7 +145,7 @@ public class ShortKmerCodesTable {
 		} 
 		//else System.out.println("Rejected codes for kmer: "+new String(DNASequence.getDNASequence(code, kmerLength))+" current count: "+currentCount+" new entries: "+entries.size());
 	}
-	private void resizeTable() {
+	private synchronized void resizeTable() {
 		log.info("Resizing codes table. Current number of codes: "+size()+" current capacity: "+sequencesByCodeTable.length);
 		int newCapacity =  2*sequencesByCodeTable.length;
 		if(newCapacity<0) newCapacity = Integer.MAX_VALUE;
@@ -172,7 +173,6 @@ public class ShortKmerCodesTable {
 			sequencesByCodeTable[row][column] = value;
 			sequencesByCodeTableColumnLengths[row]++;
 		}
-		
 	}
 	public Logger getLog() {
 		return log;
