@@ -213,6 +213,10 @@ public class QualifiedSequenceList implements List<QualifiedSequence>, Serializa
 	public boolean contains(Object o) {
 		return indexOf(o)>=0;
 	}
+	public boolean contains(String sequenceName) {
+		return indexOf(sequenceName)>=0;
+	}
+	
 	@Override
 	public boolean containsAll(Collection<?> c) {
 		for(Object o:c) {

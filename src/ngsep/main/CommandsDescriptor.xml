@@ -1836,6 +1836,9 @@ Input file in VCF format. It can be gzip compressed.
 File with population assignments for the samples.
 A two column text file with the sample ids in the first column and the ids of the populations in the second column.
 </option>
+<option id="f" type="FILE" attribute="inputFile">
+VCF file with additional samples to infer haplotype composition.
+</option>
 <option id="o" type="FILE" attribute="outputPrefix">
 Prefix of the output files. 
 </option>

@@ -36,12 +36,15 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import ngsep.genome.GenomicRegion;
+import ngsep.genome.GenomicRegionComparator;
 import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.math.NumberArrays;
+import ngsep.sequences.QualifiedSequence;
+import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.GenomicVariant;
@@ -73,6 +76,7 @@ public class VCFWindowIntrogressionAnalysis {
 	// Parameters
 	private String inputFile;
 	private String populationsFile;
+	private String vcfTestFile;
 	private String outputPrefix;
 	private double minPCTGenotyped = DEF_MIN_PCT_GENOTYPED;
 	private double minDiffAF = DEF_MIN_DIFF_AF;
@@ -120,6 +124,12 @@ public class VCFWindowIntrogressionAnalysis {
 		this.populationsFile = populationsFile;
 	}
 	
+	public String getVcfTestFile() {
+		return vcfTestFile;
+	}
+	public void setVcfTestFile(String vcfTestFile) {
+		this.vcfTestFile = vcfTestFile;
+	}
 	public String getOutputPrefix() {
 		return outputPrefix;
 	}
@@ -248,6 +258,7 @@ public class VCFWindowIntrogressionAnalysis {
 		if(inputFile != null) out.println("VCF input file: "+inputFile);
 		else out.println("Read variants from standard input");
 		out.println("Populations information file: "+getPopulationsFile());
+		if(vcfTestFile!=null) out.println("VCF file with samples for testing: "+vcfTestFile);
 		out.println("Prefix for output files: "+outputPrefix);
 		out.println("Minimim percentage of variants genotyped: "+getMinPCTGenotyped());
 		out.println("Minimum difference in allele frequencies to call a variant segregating: "+getMinDiffAF());
@@ -275,7 +286,9 @@ public class VCFWindowIntrogressionAnalysis {
 	}
 	public void runIntrogressions(VCFFileReader reader) throws IOException {
 		PrintStream outVCF = null;
+		VCFFileReader readerTest = null;
 		VCFFileWriter writer = new VCFFileWriter();
+		QualifiedSequenceList seqsVCF = new QualifiedSequenceList();
 		try (PrintStream outAssignments = new PrintStream(outputPrefix+"_assignments.txt");
 			 PrintStream outIntrogressions = new PrintStream(outputPrefix+"_introgressions.txt");
 			 PrintStream outStatistics = new PrintStream(outputPrefix+"_assignmentStats.txt");) {
@@ -289,7 +302,17 @@ public class VCFWindowIntrogressionAnalysis {
 			} else {
 				reader.setLoadMode(VCFFileReader.LOAD_MODE_MINIMAL);
 			}
-			List<Sample> samples = header.getSamples();
+			List<Sample> testSamples = new ArrayList<Sample>();
+			VCFRecord nextTestRecord = null;
+			Iterator<VCFRecord> itTest = null;
+			if(vcfTestFile!=null) {
+				readerTest = new VCFFileReader(vcfTestFile);
+				testSamples = readerTest.getHeader().getSamples();
+				itTest = readerTest.iterator();
+				if(itTest.hasNext()) nextTestRecord = itTest.next();
+			}
+			List<Sample> samples = new ArrayList<Sample>(header.getSamples());
+			samples.addAll(testSamples);
 			printHeaderAssignments(samples,outAssignments);
 			int nSamples = samples.size();
 			currentIntrogressions = new Introgression[nSamples];
@@ -327,10 +350,11 @@ public class VCFWindowIntrogressionAnalysis {
 					log.info("Starting sequence: "+currentSeqName);
 					numVarsLastWindow = 0;
 					currentWindows.add(new WindowScores(currentSeqName, nSamples, nG));
+					seqsVCF.add(new QualifiedSequence(currentSeqName));
 				}
 				GenomicVariant var = record.getVariant();
 				if(!var.isBiallelic()) continue;
-				List<CalledGenomicVariant> varCalls = record.getCalls();
+				List<CalledGenomicVariant> varCalls = new ArrayList<CalledGenomicVariant>(record.getCalls());
 				
 				double [] refAlleleFreqs = calculateFrequencies(varCalls, groupIdsList, samples);
 				boolean selectVariant = false;
@@ -357,6 +381,10 @@ public class VCFWindowIntrogressionAnalysis {
 					if(cv.isUndecided()) numUndecided[i]++;
 					else if (cv.isHeterozygous()) numHeterozygous[i]++;
 				}
+				if(testSamples.size()>0) {
+					nextTestRecord = loadNextTestRecord (itTest,var,nextTestRecord,seqsVCF);
+					varCalls.addAll(loadCallsTestSamples(var,testSamples.size(),nextTestRecord));
+				}
 				for(WindowScores window:currentWindows) {
 					window.addVariant(var, varCalls, groupCalls, matchScore, mismatchScore);
 				}
@@ -381,7 +409,38 @@ public class VCFWindowIntrogressionAnalysis {
 			printReport(samples,groupIdsList,numDiscriminative,numHeterozygous,numUndecided,outStatistics);
 		} finally {
 			if(outVCF!=null) outVCF.close();
+			if(readerTest!=null) readerTest.close();
 		}
+	}
+	private VCFRecord loadNextTestRecord(Iterator<VCFRecord> itTest, GenomicVariant var, VCFRecord lastRecord, QualifiedSequenceList vcfSequences) {
+		if(lastRecord==null) return null;
+		GenomicRegionComparator cmp = new GenomicRegionComparator(vcfSequences);
+		if(!vcfSequences.contains(lastRecord.getSequenceName())) return lastRecord;
+		int cmpR = cmp.compare(var, lastRecord);
+		if(cmpR <=0) return lastRecord;
+		VCFRecord answer = lastRecord;
+		while(itTest.hasNext()) {
+			answer = itTest.next();
+			if(!vcfSequences.contains(answer.getSequenceName())) return answer;
+			cmpR = cmp.compare(var, answer);
+			if(cmpR <=0) return answer;
+		}
+		return null;
+	}
+	private List<CalledGenomicVariant> loadCallsTestSamples(GenomicVariant var, int nSamples, VCFRecord testRecord) {
+		if(testRecord!=null) {
+			boolean equal = var.getSequenceName().equals(testRecord.getSequenceName());
+			equal = equal && var.getFirst() == testRecord.getFirst();
+			equal = equal && var.getLast() == testRecord.getLast();
+			equal = equal && var.getReference().equals(testRecord.getVariant().getReference());
+			equal = equal && var.getAlleles().length==testRecord.getVariant().getAlleles().length;
+			if(equal) return testRecord.getCalls();
+		}
+		List<CalledGenomicVariant> calls = new ArrayList<CalledGenomicVariant>();
+		for(int i=0;i<nSamples;i++) {
+			calls.add(new CalledGenomicVariantImpl(var, new byte[0]));
+		}
+		return calls;
 	}
 	private void printHeaderAssignments(List<Sample> samples, PrintStream outAssignments) {
 		outAssignments.print("Chr\tFirst\tLast");
