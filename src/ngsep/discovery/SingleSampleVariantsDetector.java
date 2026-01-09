@@ -76,6 +76,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 	public static final short DEF_MAX_PCT_OVERLAP_CNVS = 100;
 	public static final int DEF_MAX_LEN_DELETION = ReadPairAnalyzer.DEF_MAX_LEN_DELETION;
 	public static final int DEF_SPLIT_READ_SEED = ReadPairAnalyzer.DEF_SPLIT_READ_SEED;
+	public static final int DEF_NUM_THREADS = 1;
 	
 	// Logging and progress
 	private Logger log = Logger.getLogger(SingleSampleVariantsDetector.class.getName());
@@ -104,11 +105,12 @@ public class SingleSampleVariantsDetector implements PileupListener {
 	private boolean runRPAnalysis = false;
 	private boolean findNewCNVs = true;
 	private boolean runLongReadSVs = false;
+	private int numThreads = DEF_NUM_THREADS;
+	
 	// Classes implementing the algorithms for structural variants detection
 	private MultipleMappingRegionsCalculator mmRegsCalc = new MultipleMappingRegionsCalculator();
 	private ReadPairAnalyzer rpAnalyzer = new ReadPairAnalyzer();
 	//Listeners
-	private IndelRealignerPileupListener indelRealigner = new IndelRealignerPileupListener();
 	private SingleSampleVariantPileupListener varListener = new SingleSampleVariantPileupListener();
 	private boolean hetRateModified = false; 
 	
@@ -576,6 +578,16 @@ public class SingleSampleVariantsDetector implements PileupListener {
 		setRunOnlySVsAnalyses(runOnlySVsAnalyses.booleanValue());
 	}
 	
+	public int getNumThreads() {
+		return numThreads;
+	}
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+		generator.setNumThreads(numThreads);
+	}
+	public void setNumThreads(String value) {
+		setNumThreads((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
 	/**
 	 * @param args
 	 * @throws Exception 
@@ -704,6 +716,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 			out.println("Ignore proper pair flag for RP analysis : "+isIgnoreProperPairFlag());
 		}
 		out.println("Run the DBScan algorithm to identify structural variants from alignments of long reads.: "+runLongReadSVs);
+		out.println("Number of threads : "+getNumThreads());
 		log.info(os.toString());	
 	}
 	
@@ -901,14 +914,14 @@ public class SingleSampleVariantsDetector implements PileupListener {
 			log.info("Loaded "+knownVariants.size()+" input variants");
 			GenomicRegionSortedCollection<GenomicVariant> knownVarsC = new GenomicRegionSortedCollection<GenomicVariant>(genome.getSequencesMetadata());
 			knownVarsC.addAll(knownVariants);
-			indelRealigner.setInputVariants(knownVarsC);
+			generator.setInputVariants(knownVarsC);
 			varListener.setInputVariants(knownVarsC);
 		} else if(knownSTRsFile!=null) {
 			log.info("Loading input short tandem repeats");
 			//TODO: Choose the best format
 			SimpleGenomicRegionFileHandler rfh = new SimpleGenomicRegionFileHandler();
 			List<GenomicRegion> strs = rfh.loadRegions(knownSTRsFile);
-			indelRealigner.setInputVariants(makeNonRedundantSTRs(genome, strs));
+			generator.setInputVariants(makeNonRedundantSTRs(genome, strs));
 			log.info("Loaded "+strs.size()+" input short tandem repeats");
 		}
 		log.info("Finding variants");
@@ -916,8 +929,8 @@ public class SingleSampleVariantsDetector implements PileupListener {
 		Sample s = new Sample(sampleId);
 		s.setNormalPloidy(normalPloidy);
 		header.addSample(s, printSamplePloidy);
-		indelRealigner.setGenome(genome);
-		generator.addListener(indelRealigner);
+		
+		generator.setRealignIndels(true);
 		varListener.clear();
 		varListener.setGenome(genome);
 		varListener.setSample(s);
@@ -1075,7 +1088,6 @@ public class SingleSampleVariantsDetector implements PileupListener {
 	 * Removes heavy resources loaded in memory during the process
 	 */
 	private void dispose() {
-		indelRealigner.setInputVariants(null);
 		varListener.setInputVariants(null);
 		varListener.clear();
 	}

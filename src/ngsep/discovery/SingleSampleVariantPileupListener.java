@@ -51,7 +51,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	public static final String DEF_SAMPLE_ID = "Sample";
 	public static final byte DEF_MIN_PLOIDY_POOL_ALGORITHM = 3;
 	
-	private List<CalledGenomicVariant> calledVariants = new ArrayList<CalledGenomicVariant>();
+	private GenomicRegionSortedCollection<CalledGenomicVariant> calledVariants = new GenomicRegionSortedCollection<CalledGenomicVariant>();
 	
 	// Parameters 
 	private ReferenceGenome genome;
@@ -66,6 +66,8 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = new GenomicRegionSortedCollection<GenomicVariant>();
 	private Sample sample = new Sample(DEF_SAMPLE_ID);
 	
+	//Mock helper to initialize cache
+	private static CountsHelper mockHelper = new CountsHelper();
 	private static int posPrint = -1;
 	
 	public ReferenceGenome getGenome() {
@@ -137,41 +139,36 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		this.inputVariants = inputVariants;
 	}
 	public List<CalledGenomicVariant> getCalledVariants() {
-		return calledVariants;
+		return calledVariants.asList();
 	}
-	//Control attribute to avoid calling overlapping indels and to give an embedded status to SNVs within indels or STRs
-	private int lastIndelEnd = 0;
-	private int nextSIVIndex = 0;
-	private List<GenomicVariant> seqInputVariants;
+	private GenomicRegionSortedCollection<GenomicVariant> seqInputVariants;
 	@Override
 	public void onPileup(PileupRecord pileup) {
 		if(inputVariants.size()==0) {
-			if(pileup.getPosition()==posPrint) System.out.println("InputSTR: "+pileup.isInputSTR()+" span: "+pileup.getReferenceSpan()+" previous last indel end "+lastIndelEnd);
-			if(pileup.isInputSTR() && pileup.getPosition() >= lastIndelEnd) lastIndelEnd = pileup.getPosition()+pileup.getReferenceSpan()-1;
-			else if(pileup.getPosition()<=lastIndelEnd) pileup.setEmbedded(true);
+			if(pileup.getPosition()==posPrint) System.out.println("InputSTR: "+pileup.isInputSTR()+" span: "+pileup.getReferenceSpan());
 			String referenceAllele = SingleSampleVariantPileupListener.calculateReferenceAlleleDiscovery(pileup,genome,callEmbeddedSNVs,ignoreLowerCaseRef);
 			if(referenceAllele == null) return;
 			CalledGenomicVariant calledVar = discoverVariant(pileup, referenceAllele);
 			if(calledVar!=null) {
-				calledVariants.add(calledVar);
+				synchronized (calledVariants) {
+					calledVariants.add(calledVar);
+				}
 				if(!calledVar.isSNV() && !calledVar.isUndecided() && !calledVar.isHomozygousReference()) {
-					lastIndelEnd = calledVar.getLast();
-					if(pileup.getPosition()==posPrint) System.out.println("Call: "+calledVar.getFirst()+" - "+calledVar.getLast()+" type "+calledVar.getType()+" last indel end "+lastIndelEnd);
+					if(pileup.getPosition()==posPrint) System.out.println("Call: "+calledVar.getFirst()+" - "+calledVar.getLast()+" type "+calledVar.getType());
 				}
 			}
-		} else if(nextSIVIndex<seqInputVariants.size()) {
-			GenomicVariant inputVariant = seqInputVariants.get(nextSIVIndex);
-			while(inputVariant.getFirst() <= pileup.getPosition() ) {
+		} else {
+			List<GenomicVariant> overlappingInputVars = seqInputVariants.findSpanningRegions(pileup.getSequenceName(), pileup.getPosition()).asList();
+			for(GenomicVariant inputVariant:overlappingInputVars) {
 				//if(pileup.getPosition()==posPrint) System.out.println("Pileup: "+pileup.getPosition()+" span: "+pileup.getReferenceSpan()+" variant "+inputVariant.getSequenceName()+":"+inputVariant.getFirst()+" pos: "+nextSIVIndex);
 				if(inputVariant.getFirst()==pileup.getPosition()) {
 					//The default sample is not used because read groups are not properly set
 					CalledGenomicVariant calledVar = genotypeVariantSample(inputVariant, pileup, null, heterozygosityRate);
 					//if(pileup.getPosition()==posPrint) System.out.println("Called variant genotype: "+calledVar.getIndexesCalledAlleles().length+" quality: "+calledVar.getGenotypeQuality());
-					calledVariants.add(calledVar);
+					synchronized (calledVariants) {
+						calledVariants.add(calledVar);
+					}
 				}
-				nextSIVIndex++;
-				if(nextSIVIndex>=seqInputVariants.size()) return;
-				inputVariant = seqInputVariants.get(nextSIVIndex);
 			}
 		}
 	}
@@ -181,9 +178,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	}
 	@Override
 	public void onSequenceStart(QualifiedSequence sequence) {
-		if(inputVariants.size()>0) seqInputVariants = inputVariants.getSequenceRegions(sequence.getName()).asList();
-		nextSIVIndex = 0;
-		lastIndelEnd = 0;
+		if(inputVariants.size()>0) seqInputVariants = inputVariants.getSequenceRegions(sequence.getName());
 	}
 	public void clear() {
 		calledVariants.clear();

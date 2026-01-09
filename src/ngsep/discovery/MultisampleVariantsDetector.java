@@ -62,6 +62,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	public static final byte DEF_MAX_BASE_QS = CountsHelper.DEF_MAX_BASE_QS;
 	public static final byte DEF_PLOIDY = GenomicVariant.DEFAULT_PLOIDY;
 	public static final String DEF_OUTPUT_FILE = "variants.vcf";
+	public static final int DEF_NUM_THREADS = 1;
 	
 	// Logging and progress
 	private Logger log = Logger.getLogger(MultisampleVariantsDetector.class.getName());
@@ -75,6 +76,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private PrintStream outFile;
 	private VCFFileHeader vcfFileHeader;
 	private VCFFileWriter writer = new VCFFileWriter();
+	private GenomicRegionSortedCollection<VCFRecord> sequenceRecords = new GenomicRegionSortedCollection<>();
 	
 	private double heterozygosityRate = DEF_HETEROZYGOSITY_RATE_DIPLOID;
 	private AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
@@ -86,13 +88,11 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private byte maxBaseQS = DEF_MAX_BASE_QS;
 	private short normalPloidy = DEF_PLOIDY;
 	private boolean printSamplePloidy = false;
+	private int numThreads = DEF_NUM_THREADS;
 	
 	private String knownSTRsFile = null;
 	private String knownVariantsFile=null;
 	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = new GenomicRegionSortedCollection<>();
-	
-	// Model attributes
-	private IndelRealignerPileupListener indelRealigner = new IndelRealignerPileupListener();
 	
 	private List<Sample> samples;
 	private double coveredGenomeSize = 0;
@@ -402,6 +402,16 @@ public class MultisampleVariantsDetector implements PileupListener {
 		setMinAlleleDepthFrequency((double)OptionValuesDecoder.decode(value, Double.class));
 	}
 	
+	public int getNumThreads() {
+		return numThreads;
+	}
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+	}
+	public void setNumThreads(String value) {
+		setNumThreads((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	
 	public List<Sample> getSamples() {
 		return samples;
 	}
@@ -423,9 +433,8 @@ public class MultisampleVariantsDetector implements PileupListener {
 		if (genome==null) throw new IOException("The reference genome file is a required parameter");
 		referenceGenomeSize = genome.getTotalLength();
 		QualifiedSequenceList sequences = genome.getSequencesMetadata();
-		indelRealigner.setGenome(genome);
 		generator.setGenome(genome);
-		generator.setSequencesMetadata(sequences);
+		generator.setRealignIndels(true);
 		//TODO: assign sample ids if not in aln files
 		if(samples == null) loadSamplesFromAlignmentHeaders();
 		
@@ -435,18 +444,17 @@ public class MultisampleVariantsDetector implements PileupListener {
 			log.info("Loaded "+knownVariants.size()+" input variants");
 			inputVariants = new GenomicRegionSortedCollection<GenomicVariant>(sequences);
 			inputVariants.addAll(knownVariants);
-			indelRealigner.setInputVariants(inputVariants);
+			generator.setInputVariants(inputVariants);
 		} else if(knownSTRsFile!=null) {
 			log.info("Loading input short tandem repeats from: "+knownSTRsFile);
 			//TODO: STRs loader
 			SimpleGenomicRegionFileHandler rfh = new SimpleGenomicRegionFileHandler();
 			List<GenomicRegion> strs = rfh.loadRegions(knownSTRsFile);
-			indelRealigner.setInputVariants(SingleSampleVariantsDetector.makeNonRedundantSTRs(genome,strs));
+			generator.setInputVariants(SingleSampleVariantsDetector.makeNonRedundantSTRs(genome,strs));
 			log.info("Loaded "+strs.size()+" input short tandem repeats");
 		}
 		log.info("Finding variants");
 		
-		generator.addListener(indelRealigner);
 		generator.addListener(this);
 		try {
 			outFile = new PrintStream(outFilename);
@@ -514,15 +522,11 @@ public class MultisampleVariantsDetector implements PileupListener {
 		}
 		samples = new ArrayList<>(samplesMap.values()); 
 	}
-	//Control attribute to avoid calling overlapping indels and to give an embedded status to SNVs within indels or STRs
-	private int lastIndelEnd = 0;
-	private int nextSIVIndex = 0;
-	private List<GenomicVariant> seqInputVariants;
+	
+	private GenomicRegionSortedCollection<GenomicVariant> seqInputVariants;
 	@Override
 	public void onPileup(PileupRecord pileup) {
 		if(inputVariants.size()==0) {
-			if(pileup.isInputSTR()) lastIndelEnd = pileup.getPosition()+pileup.getReferenceSpan()-1;
-			else if(pileup.getPosition()<=lastIndelEnd) pileup.setEmbedded(true);
 			String referenceAllele = SingleSampleVariantPileupListener.calculateReferenceAlleleDiscovery(pileup,genome,callEmbeddedSNVs,ignoreLowerCaseRef);
 			if(referenceAllele==null) return;
 			
@@ -532,24 +536,22 @@ public class MultisampleVariantsDetector implements PileupListener {
 			List<CalledGenomicVariant> calls = genotypeVariant(variant, pileup);
 			if (variant.getVariantQS()==0 || variant.getVariantQS() < minQuality) return;
 			VCFRecord record = VCFRecord.createDefaultPopulationVCFRecord(variant, calls, vcfFileHeader);
-			writer.printVCFRecord(record, outFile);
-			if(!variant.isSNV()) {
-				lastIndelEnd = variant.getLast();
+			synchronized (sequenceRecords) {
+				sequenceRecords.add(record);
 			}
-		} else if(nextSIVIndex<seqInputVariants.size()) {
-			GenomicVariant inputVariant = seqInputVariants.get(nextSIVIndex);
-			while(inputVariant.getFirst() <= pileup.getPosition() ) {
+			
+		} else {
+			List<GenomicVariant> overlappingInputVars = seqInputVariants.findSpanningRegions(pileup.getSequenceName(), pileup.getPosition()).asList();
+			for(GenomicVariant inputVariant:overlappingInputVars) {
 				if(inputVariant.getFirst()==pileup.getPosition()) {
 					List<CalledGenomicVariant> calls = genotypeVariant(inputVariant, pileup);
 					VCFRecord record = VCFRecord.createDefaultPopulationVCFRecord(inputVariant, calls, vcfFileHeader);
-					writer.printVCFRecord(record, outFile);
+					synchronized (sequenceRecords) {
+						sequenceRecords.add(record);
+					}
 				}
-				nextSIVIndex++;
-				if(nextSIVIndex>=seqInputVariants.size()) break;
-				inputVariant = seqInputVariants.get(nextSIVIndex);
 			}
 		}
-		
 		coveredGenomeSize++;
 		if(progressNotifier!=null && coveredGenomeSize%10000==0) {
 			int progress = (int)Math.round(100.0*coveredGenomeSize/referenceGenomeSize);
@@ -560,14 +562,13 @@ public class MultisampleVariantsDetector implements PileupListener {
 	
 	@Override
 	public void onSequenceStart(QualifiedSequence sequence) {
-		if(inputVariants.size()>0) seqInputVariants = inputVariants.getSequenceRegions(sequence.getName()).asList();
-		nextSIVIndex = 0;
-		lastIndelEnd = 0;
+		if(inputVariants.size()>0) seqInputVariants = inputVariants.getSequenceRegions(sequence.getName());
 	}
 
 	@Override
 	public void onSequenceEnd(QualifiedSequence sequence) {
-		
+		writer.printVCFRecords(sequenceRecords.asList(), outFile);
+		sequenceRecords.clear();
 	}
 	
 	public GenomicVariant discoverPopulationVariant(PileupRecord pileup, String referenceAllele) {
@@ -695,7 +696,6 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private void dispose() {
 		inputVariants =null;
 		seqInputVariants = null;
-		indelRealigner.setInputVariants(null);
 	}
 
 

@@ -103,7 +103,6 @@ public class ReadAlignment implements GenomicRegion {
     private short [] alleleCallLength; //Length of the allele call at each read position. 0 for skipped bases
     private Map<Integer,GenomicVariant> indelCalls; //Indel calls indexed by the last reference position before the event. Null for alignments without indels
     private Map<Integer,Integer> indelStartsByReadPos; //Indel starts indexed by read position
-    private boolean alleleCallsUpdated = false;
 	
 	//Read information loaded on demand 
 	private char [] readName=null;
@@ -243,7 +242,7 @@ public class ReadAlignment implements GenomicRegion {
 	public void setNegativeStrand (boolean negativeStrand) {
 		if(negativeStrand) flags = flags | FLAG_READ_REVERSE_STRAND;
 		else flags = flags & ~FLAG_READ_REVERSE_STRAND;
-		alleleCallsUpdated = false;
+		updateAlleleCallsInfo();
 	}
 	
 	/**
@@ -264,8 +263,8 @@ public class ReadAlignment implements GenomicRegion {
 		if(isReadUnmapped()) {
 			alignment = null;
 			last = 0;
+			updateAlleleCallsInfo();
 		}
-		alleleCallsUpdated = false;
 	}
 	
 	/**
@@ -377,9 +376,12 @@ public class ReadAlignment implements GenomicRegion {
 	 * @param mateUnmapped true if the read is not mapped
 	 */
 	public void setReadUnmapped (boolean readUnmapped) {
-		if(readUnmapped) flags = flags | FLAG_READ_UNMAPPED;
+		if(readUnmapped) {
+			flags = flags | FLAG_READ_UNMAPPED;
+			alignment = null;
+			updateAlleleCallsInfo();
+		}
 		else flags = flags & ~FLAG_READ_UNMAPPED;
-		alleleCallsUpdated = false;
 	}
 	/**
 	 * Tells if the mate of this read did not align to any position of the reference
@@ -609,7 +611,7 @@ public class ReadAlignment implements GenomicRegion {
 		if(basesToIgnoreCloseToIndel<1) throw new IllegalArgumentException("Bases to ignore close to indel must be at least 1");
 		if(this.basesToIgnoreCloseToIndel != basesToIgnoreCloseToIndel) {
 			this.basesToIgnoreCloseToIndel = basesToIgnoreCloseToIndel;
-			this.alleleCallsUpdated = false;
+			updateAlleleCallsInfo();
 		}	
 	}
 	
@@ -629,7 +631,7 @@ public class ReadAlignment implements GenomicRegion {
 			this.basesToIgnoreStart = basesToIgnore5P;
 			changed = true;
 		}
-		if(changed) this.alleleCallsUpdated = false;
+		if(changed) updateAlleleCallsInfo();
 	}
 
 	/**
@@ -647,7 +649,7 @@ public class ReadAlignment implements GenomicRegion {
 			this.basesToIgnoreEnd = basesToIgnore3P;
 			changed = true;
 		}	
-		if(changed) this.alleleCallsUpdated = false;
+		if(changed) updateAlleleCallsInfo();
 	}
 	
 	/**
@@ -664,7 +666,7 @@ public class ReadAlignment implements GenomicRegion {
 	public void setBasesToIgnoreStart(short basesToIgnoreStart) {
 		if(this.basesToIgnoreStart != basesToIgnoreStart) {
 			this.basesToIgnoreStart = basesToIgnoreStart;
-			this.alleleCallsUpdated = false;
+			updateAlleleCallsInfo();
 		}
 	}
 
@@ -682,7 +684,7 @@ public class ReadAlignment implements GenomicRegion {
 	public void setBasesToIgnoreEnd(short basesToIgnoreEnd) {
 		if(this.basesToIgnoreEnd != basesToIgnoreEnd) {
 			this.basesToIgnoreEnd = basesToIgnoreEnd;
-			this.alleleCallsUpdated = false;
+			updateAlleleCallsInfo();
 		}	
 	}
 	/**
@@ -776,12 +778,10 @@ public class ReadAlignment implements GenomicRegion {
 	}
 
 	public void updateAlleleCallsInfo() {
-		if(alleleCallsUpdated) return;
 		if(alignment == null) {
 			alleleCallLength = null;
 			indelCalls = null;
 			indelStartsByReadPos = null;
-			alleleCallsUpdated = true;
 			return;
 		}
 		int currentRefPos = first;
@@ -860,7 +860,6 @@ public class ReadAlignment implements GenomicRegion {
 			}
 			previousIsIndel = isIndel(operator);
 		}
-		alleleCallsUpdated = true;
 		//throw new RuntimeException("Called method to update allele calls");
 	}
 
@@ -1021,7 +1020,6 @@ public class ReadAlignment implements GenomicRegion {
 		if(readCharacters ==null) return null;
 		int readPos = getAlignedReadPosition(referencePos);
 		if(readPos<0) return null;
-		updateAlleleCallsInfo();
 		//if(readPos>=alleleCallLength.length) System.err.println("Invalid read position: "+readPos+" Read: "+getReadName()+" Located at "+sequenceName+":"+first+" last:"+last+". Length: "+readCharacters.length()+" CIGAR: "+getCigarString()+" expected length: "+expectedReadLength+" reference pos: "+referencePos);
 		//if(readPos>=alleleCallLength.length) System.err.println("Alignment: "+alignment[0]+" "+alignment[1]+" "+alignment[2]);
 		int length = alleleCallLength[readPos];
@@ -1038,7 +1036,6 @@ public class ReadAlignment implements GenomicRegion {
 	 */
 	public CharSequence getAlleleCall (int referenceFirst, int referenceLast) {
 		if(readCharacters == null) return null;
-		updateAlleleCallsInfo();
 		int readFirst = getAlignedReadPosition(referenceFirst);
 		int readLast = getAlignedReadPosition(referenceLast);
 		if(readFirst<0 || readLast<0 || readLast < readFirst) return null;
@@ -1080,7 +1077,6 @@ public class ReadAlignment implements GenomicRegion {
 	 */
 	public Map<Integer,GenomicVariant> getIndelCalls () {
 		failIfReadUnmappedOrInconsistentAlignment();
-		updateAlleleCallsInfo();
 		return indelCalls;
 	}
 	/**
@@ -1090,7 +1086,6 @@ public class ReadAlignment implements GenomicRegion {
 	 */
 	public Map<Integer,GenomicVariant> getIndelCallsByAlignedReadPos () {
 		failIfReadUnmappedOrInconsistentAlignment();
-		updateAlleleCallsInfo();
 		 
 		if(indelStartsByReadPos==null) return null;
 		Map<Integer,GenomicVariant> answer = new TreeMap<Integer, GenomicVariant>();
@@ -1106,7 +1101,6 @@ public class ReadAlignment implements GenomicRegion {
 	 */
 	public int getCountIndelCalls () {
 		failIfReadUnmappedOrInconsistentAlignment();
-		updateAlleleCallsInfo();
 		if (indelCalls==null) return 0;
 		return indelCalls.size();
 	}
@@ -1116,7 +1110,6 @@ public class ReadAlignment implements GenomicRegion {
 	 */
 	public int getTotalLengthIndelCalls () {
 		failIfReadUnmappedOrInconsistentAlignment();
-		updateAlleleCallsInfo();
 		if (indelCalls==null) return 0;
 		int total = 0;
 		for(GenomicVariant indel:indelCalls.values()) {
@@ -1131,7 +1124,6 @@ public class ReadAlignment implements GenomicRegion {
 	 */
 	public GenomicVariant getIndelCall(int referencePos) {
 		failIfReadUnmappedOrInconsistentAlignment();
-		updateAlleleCallsInfo();
 		if(indelCalls == null) return null;
 		return indelCalls.get(referencePos);
 	}
@@ -1179,7 +1171,7 @@ public class ReadAlignment implements GenomicRegion {
 		if(indelNextIdx<0) return false;
 		if(first == posPrint) System.out.println("New alignment for read: "+getReadName()+": "+newAlignment[0]+" "+newAlignment[1]+" "+newAlignment[2]);
 		alignment = newAlignment;
-		alleleCallsUpdated = false;
+		updateAlleleCallsInfo();
 		return true;
 	}
 	/**
@@ -1294,7 +1286,7 @@ public class ReadAlignment implements GenomicRegion {
 			this.last = expectedEnd - 1;
 		}
 		if(first == posPrint && alignment.length >=3) System.out.println("Alignment codes: "+alignment[0]+" "+alignment[1]+" "+alignment[2]+" Expected read length: "+expectedReadLength);
-		alleleCallsUpdated = false;
+		updateAlleleCallsInfo();
 	}
 	
 	/**
@@ -1322,7 +1314,7 @@ public class ReadAlignment implements GenomicRegion {
 			System.out.println("WARN. New alignment changes last alignment position for read mapped at "+sequenceIndex+" "+sequenceName+":"+first+" currentLast: "+this.last+" expectedLast: "+(expectedEnd-1)+" read name: "+getReadName()+" read length "+this.readLength);
 			this.last = expectedEnd - 1;
 		}
-		alleleCallsUpdated = false;
+		updateAlleleCallsInfo();
 	}
 	
 	private List<Integer> collapseEqualEvents(List<Integer> alignmentList) {
@@ -1446,7 +1438,7 @@ public class ReadAlignment implements GenomicRegion {
 		}
 		first = newAlnFirst;
 		alignment = NumberArrays.toIntArray(alignmentList);
-		alleleCallsUpdated = false;
+		updateAlleleCallsInfo();
 	}
 
 	/**
@@ -1497,7 +1489,7 @@ public class ReadAlignment implements GenomicRegion {
 		alignmentList.add(getAlnValue(finalMatchLength, ALIGNMENT_MATCH));
 		alignment = NumberArrays.toIntArray(alignmentList);
 		last = finalMatchRefStart + finalMatchLength -1;
-		alleleCallsUpdated = false;
+		updateAlleleCallsInfo();
 	}
 
 	public boolean hasIndelCalls(int referenceFirst, int referenceLast) {

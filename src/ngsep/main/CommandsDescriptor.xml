@@ -1,4 +1,4 @@
-<software name="NGSEP" version="5.1.0" date="29-05-2025" jar="NGSEPcore">
+<software name="NGSEP" version="5.1.1" date="01-03-2026" jar="NGSEPcore">
 <title>Next Generation Sequencing Experience Platform</title>
 <url>http://sourceforge.net/projects/ngsep/files/Library/</url>
 
@@ -658,6 +658,10 @@ See the command VCFFilter to apply filters of quality and read depth on individu
 <option id="embeddedSNVs" type="BOOLEAN" attribute="callEmbeddedSNVs">
 Flag to call SNVs within STRs. By default, STRs are treated as a single locus and hence no SNV will be called within an STR.
 </option>
+<option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
+Number of threads
+</option>
+
 </command>
 
 <command id="SingleSampleVariantsDetector" class="ngsep.discovery.SingleSampleVariantsDetector" groupId="Discovery" formerId="FindVariants">
@@ -797,6 +801,9 @@ Turns off detection of SNVs and small indels. In this mode, only structural vari
 </option>
 <option id="runLongReadSVs" type="BOOLEAN" attribute="runLongReadSVs">
 Runs the DBScan algorithm to identify structural variants from alignments of long reads.
+</option>
+<option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
+Number of threads
 </option>
 </command>
 

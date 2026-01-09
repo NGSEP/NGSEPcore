@@ -155,11 +155,7 @@ public class PileupRecord {
 		if(aln.getFirst()>position) return;
 		if(aln.getLast()<position) return;
 		alignmentsList.add(aln);
-		List<ReadAlignment> alnsRG = alignmentsMap.get(aln.getReadGroup());
-		if(alnsRG==null) {
-			alnsRG = new ArrayList<>();
-			alignmentsMap.put(aln.getReadGroup(), alnsRG);
-		}
+		List<ReadAlignment> alnsRG = alignmentsMap.computeIfAbsent(aln.getReadGroup(), v-> new ArrayList<ReadAlignment>());
 		alnsRG.add(aln);
 		numAlignments++;
 		if(aln.isUnique()) numUniqueAlns++;

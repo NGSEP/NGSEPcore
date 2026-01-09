@@ -21,18 +21,24 @@ package ngsep.discovery;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.genome.GenomicRegionComparator;
+import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
+import ngsep.main.ThreadPoolManager;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
+import ngsep.variants.GenomicVariant;
 
 
 public class AlignmentsPileupGenerator {
@@ -56,16 +62,22 @@ public class AlignmentsPileupGenerator {
 	private byte basesToIgnore5P = 0;
 	private byte basesToIgnore3P = 0;
 	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
+	private boolean realignIndels = false;
+	private int numThreads = 1;
 	
 	// Internal attributes to follow up the pileup process
 	private QualifiedSequence currentReferenceSequence = null;
 	private int currentReferencePos = 0;
 	private int currentReferenceLast = 0;
 	private List<ReadAlignment> pendingAlignments = new ArrayList<ReadAlignment>();
+	private IndelRealignerPileupListener irl = new IndelRealignerPileupListener();
 	
 	private List<ReadAlignment> sameStartPrimaryAlignments = new ArrayList<ReadAlignment>();
 	private List<ReadAlignment> sameStartSecondaryAlignments = new ArrayList<ReadAlignment>();
 	private int lastReadAlignmentStart = 0;
+	
+	private Queue<PileupRecord> pendingPileups = new LinkedList<PileupRecord>();
+	private static final int MAX_SIZE_PENDING_PILEUPS = 100000;
 	
 
 	public void addListener(PileupListener listener) {
@@ -175,6 +187,22 @@ public class AlignmentsPileupGenerator {
 		this.minMQ = minMQ;
 	}
 
+	public boolean isRealignIndels() {
+		return realignIndels;
+	}
+	
+	public void setRealignIndels(boolean realignIndels) {
+		this.realignIndels = realignIndels;
+	}
+
+	public int getNumThreads() {
+		return numThreads;
+	}
+
+	public void setNumThreads(int numThreads) {
+		this.numThreads = numThreads;
+	}
+
 	public boolean isKeepRunning() {
 		return keepRunning;
 	}
@@ -190,6 +218,10 @@ public class AlignmentsPileupGenerator {
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
 		this.sequencesMetadata = genome.getSequencesMetadata();
+		irl.setGenome(genome);
+	}
+	public void setInputVariants(GenomicRegionSortedCollection<GenomicVariant> inputVariants) {
+		irl.setInputVariants(inputVariants);
 	}
 
 	/**
@@ -380,9 +412,7 @@ public class AlignmentsPileupGenerator {
 			if(!sameSequence || lastReadAlignmentStart !=aln.getFirst()) {
 				processSameStartAlns();
 				if(!sameSequence) {
-					processPileups(currentReferenceLast+1);
-					for(PileupListener listener:listeners) listener.onSequenceEnd(currentReferenceSequence);
-					currentReferenceSequence=null;
+					endSequence();
 				} else {
 					processPileups(aln.getFirst());
 				}
@@ -390,10 +420,8 @@ public class AlignmentsPileupGenerator {
 		} 
 		if (currentReferenceSequence==null) {
 			startSequence(aln);
-			for(PileupListener listener:listeners) listener.onSequenceStart(currentReferenceSequence);
 		}
-		int alnLast = aln.getLast();
-		if(alnLast > currentReferenceLast) currentReferenceLast = alnLast;
+		currentReferenceLast = Math.max(currentReferenceLast, aln.getLast());
 		if(aln.isSecondary()) {
 			sameStartSecondaryAlignments.add(aln);
 		} else {
@@ -438,17 +466,24 @@ public class AlignmentsPileupGenerator {
 		if(currentReferenceSequence == null) {
 			currentReferenceSequence = new QualifiedSequence(seqName);
 		}
-		log.info("Processing sequence "+aln.getSequenceName());
+		log.info("Processing sequence "+currentReferenceSequence.getName());
 		currentReferencePos = aln.getFirst();
 		currentReferenceLast = aln.getLast();
+		irl.onSequenceStart(currentReferenceSequence);
+		for(PileupListener listener:listeners) listener.onSequenceStart(currentReferenceSequence);
 	}
-
-	
-	public void notifyEndOfAlignments() {
-		processSameStartAlns();
-		processPileups(Math.min(queryLast, currentReferenceLast)+1);
+	private void endSequence() {
+		processPileups(currentReferenceLast+1);
+		processPendingPileups();
+		log.info("Processed sequence "+currentReferenceSequence.getName());
+		irl.onSequenceEnd(currentReferenceSequence);
 		if(currentReferenceSequence!=null) for(PileupListener listener:listeners) listener.onSequenceEnd(currentReferenceSequence);
 		currentReferenceSequence=null;
+	}
+
+	public void notifyEndOfAlignments() {
+		processSameStartAlns();
+		endSequence();
 	}
 	private void processPileups(int alignmentStart) {
 		if(alignmentStart==currentReferencePos) return;
@@ -491,10 +526,70 @@ public class AlignmentsPileupGenerator {
 			pileup.addAlignment(aln);
 		}
 		if(currentReferencePos==posPrint)System.out.println("Number of alignments in pileup: "+pileup.getNumAlignments()+". time: "+System.currentTimeMillis());
-		processPileup(pileup);
-		if(currentReferencePos==posPrint)System.out.println("Processed pileup. time: "+System.currentTimeMillis());
+		boolean answer = pileup.getNumAlignments()>0;
+		if(realignIndels) {
+			irl.onPileup(pileup);
+		}
+		if(pendingPileups.size()>=MAX_SIZE_PENDING_PILEUPS && pileup.getReferenceSpan()==1) processPendingPileups();
+		pendingPileups.add(pileup);
+		if(currentReferencePos==posPrint)System.out.println("Added pileup to the queue. time: "+System.currentTimeMillis());
 		currentReferencePos++;
-		return pileup.getNumAlignments()>0;
+		return answer;
+	}
+	
+	
+	private void processPendingPileups2() {
+		ThreadPoolManager pileupProcessesManager= new ThreadPoolManager(numThreads, 2*MAX_SIZE_PENDING_PILEUPS); 
+		while(pendingPileups.size()>0) {
+			PileupRecord pileup = pendingPileups.poll();
+			try {
+				pileupProcessesManager.queueTask(()->processPileup(pileup));
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		try {
+			pileupProcessesManager.terminatePool();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	private void processPendingPileups() {
+		ThreadPoolManager pileupProcessesManager= new ThreadPoolManager(numThreads, numThreads);
+		int pileupsPerThread = pendingPileups.size();
+		if(pendingPileups.size()>2*numThreads) pileupsPerThread = 1+pendingPileups.size()/numThreads;
+		pileupProcessesManager.setSecondsPerTask(pileupsPerThread);
+		List<PileupRecord> nextGroup = new ArrayList<PileupRecord>();
+		while(pendingPileups.size()>0) {
+			PileupRecord pileup = pendingPileups.poll();
+			if(nextGroup.size()>=pileupsPerThread) {
+				final List<PileupRecord> toProcess = Collections.unmodifiableList(nextGroup);
+				try {	
+					pileupProcessesManager.queueTask(()->processPileupsGroup(toProcess));	
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				nextGroup = new ArrayList<PileupRecord>();
+			}
+			nextGroup.add(pileup);
+		}
+		final List<PileupRecord> toProcess = Collections.unmodifiableList(nextGroup);
+		try {	
+			pileupProcessesManager.queueTask(()->processPileupsGroup(toProcess));	
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		try {
+			pileupProcessesManager.terminatePool();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	private void processPileupsGroup(List<PileupRecord> nextGroup) {
+		for(PileupRecord pileup:nextGroup) processPileup(pileup);
 	}
 
 	private void processPileup(PileupRecord pileup) {
