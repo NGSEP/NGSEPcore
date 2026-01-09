@@ -40,7 +40,6 @@ import java.util.TreeMap;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
-import ngsep.discovery.CountsHelper;
 import ngsep.discovery.MultisampleVariantsDetector;
 import ngsep.main.CommandsDescriptor;
 import ngsep.main.OptionValuesDecoder;
@@ -332,8 +331,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		printStatistics("initial");
 		processInfo.addTime(System.currentTimeMillis(), "Cluster reads end");	
 		processInfo.addTime(System.currentTimeMillis(), "Variant calling start");
-		//Initialize cache resources of CountsHelper
-		new CountsHelper();
 		List<String> clustered1 = clusteredReadsFilenames.get(1);
 		List<String> clustered2 = clusteredReadsFilenames.get(2);
 		log.info("Clustered reads");

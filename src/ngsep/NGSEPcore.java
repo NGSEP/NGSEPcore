@@ -21,13 +21,14 @@ package ngsep;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.logging.Logger;
 
-
+import ngsep.main.CacheRegistry;
 import ngsep.main.Command;
 import ngsep.main.CommandsDescriptor;
 
 public class NGSEPcore {
-
+	private static Logger log = Logger.getLogger(NGSEPcore.class.getName());
 		
 	/**
 	 * @param args
@@ -59,11 +60,23 @@ public class NGSEPcore {
 			}
 			System.exit(1);
 		}
+		long start = System.currentTimeMillis();
+		CacheRegistry.initializeCacheResources();
+		Runtime runtime = Runtime.getRuntime();
+		double usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		usedMemory/=1000000000;
+		//System.err.println("Initialized cache. Time: "+(System.currentTimeMillis()-start)+" Memory (Gb): "+usedMemory);
+		log.info("Starting command "+command.getId());
 		Class<?> program = command.getProgram();
 	    Class<?>[] argTypes = new Class[] { String[].class };
 	    Method main = program.getDeclaredMethod("main", argTypes);
   	    String[] mainArgs = Arrays.copyOfRange(args, 1, args.length);
 	    main.invoke(null, (Object)mainArgs);
+	    long time = System.currentTimeMillis()-start;
+	    time/=1000;
+	    usedMemory = runtime.totalMemory()-runtime.freeMemory();
+		usedMemory/=1000000000;
+	    log.info("Finished command "+command.getId()+ " in "+time+" seconds. Remaining memory (Gb): "+usedMemory);
 	}
 
 }

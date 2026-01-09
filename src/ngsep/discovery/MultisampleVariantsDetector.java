@@ -407,7 +407,9 @@ public class MultisampleVariantsDetector implements PileupListener {
 	}
 	public void setNumThreads(int numThreads) {
 		this.numThreads = numThreads;
+		generator.setNumThreads(numThreads);
 	}
+	
 	public void setNumThreads(String value) {
 		setNumThreads((int)OptionValuesDecoder.decode(value, Integer.class));
 	}

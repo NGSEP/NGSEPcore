@@ -66,8 +66,6 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = new GenomicRegionSortedCollection<GenomicVariant>();
 	private Sample sample = new Sample(DEF_SAMPLE_ID);
 	
-	//Mock helper to initialize cache
-	private static CountsHelper mockHelper = new CountsHelper();
 	private static int posPrint = -1;
 	
 	public ReferenceGenome getGenome() {

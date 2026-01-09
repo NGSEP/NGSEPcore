@@ -63,15 +63,56 @@ public class CountsHelper {
 	private static double [] logProbSVNormDistCache;
 
 	private boolean verbose = false;
-
-	/**
-	 * Creates a default counts helper
-	 */
-	public CountsHelper () {
-		setAlleles(DNASequence.BASES_ARRAY);
+	static {
+		setProbabilitiesCache();
 	}
-	public CountsHelper (String [] alleles) {
-		setAlleles(alleles);
+	private static void setProbabilitiesCache() {
+		int m = DEF_MAX_BASE_QS+1;
+		int numAlleles = GenomicVariant.MAX_NUM_ALLELES;
+		int n = numAlleles+1;
+		if(logProbCacheError!=null && logProbCacheError.length>=n) return;
+		logProbCacheError = new double [m][n];
+
+		for(byte i=DEF_MIN_BASE_QS;i<logProbCacheError.length;i++) {
+			//Log of error probability for quality score i
+			logProbCacheError[i][0] = -0.1*i;
+			for(int j=2;j<logProbCacheError[i].length;j++) {
+				//Error probability divided by number of alleles minus 1
+				logProbCacheError[i][j]=logProbCacheError[i][0]-Math.log10(j-1);
+			}
+		}
+		alleleFreqCache = new double [DEF_NUM_FREQUENCIES][2];
+		logProbCacheGT = new double [DEF_NUM_FREQUENCIES][m][n];
+		for(int f=0;f<DEF_NUM_FREQUENCIES;f++) {
+			setProbabilitiesCacheFrequency (f);
+		}
+		NormalDistribution nd = new NormalDistribution(0, 1);
+		logProbSVNormDistCache = new double[1001];
+		double zScore = 0.0000000000001;
+		for(int i = 0; i < logProbSVNormDistCache.length; i++){
+			logProbSVNormDistCache[i] = Math.log10(nd.probability(zScore));
+			zScore += LongReadStructuralVariantDetector.NORM_DIST_BIN_SIZE;
+		}
+	}
+	private static void setProbabilitiesCacheFrequency(int f) {
+		double alleleFrequency = (double)f/(DEF_NUM_FREQUENCIES-1);
+		alleleFreqCache[f][0] = Math.log10(alleleFrequency);
+		alleleFreqCache[f][1] = Math.log10(1-alleleFrequency);
+		for(byte i=DEF_MIN_BASE_QS;i<logProbCacheError.length;i++) {
+			double errorProb = PhredScoreHelper.calculateProbability(i);
+			double successProb = 1-errorProb;
+			logProbCacheGT[f][i][0] = Math.log10(successProb);
+			for(int j=2;j<logProbCacheError[i].length;j++) {
+				double hetProb = alleleFrequency*successProb+(1-alleleFrequency)*errorProb/(j-1);
+				logProbCacheGT[f][i][j] = Math.log10(hetProb);
+				/*
+				logProbCache[i][j][2] = Math.log10(epa);
+				double term = 0.5*(1-j*epa);
+				logProbCache[i][j][0] = Math.log10(successProb-term);
+				logProbCache[i][j][1] = Math.log10(epa+term);*/
+			}
+		}
+
 	}
 	/**
 	 * Calculates counts to call SNVs for the given pileup
@@ -103,7 +144,15 @@ public class CountsHelper {
 		}
 		return helper;
 	}
-
+	/**
+	 * Creates a default counts helper
+	 */
+	public CountsHelper () {
+		setAlleles(DNASequence.BASES_ARRAY);
+	}
+	public CountsHelper (String [] alleles) {
+		setAlleles(alleles);
+	}
 	public double getHeterozygousProportion() {
 		return heterozygousProportion;
 	}
@@ -129,62 +178,10 @@ public class CountsHelper {
 		alleleErrorLogProbs = new double [nAlleles];
 		countsStrand = new int [nAlleles][2];
 		logConditionalProbs = new double [nAlleles][nAlleles];
-		updateProbabilitiesCache(nAlleles);
+		
 		startCounts();
 	}
-	private synchronized void updateProbabilitiesCache(int numAlleles) {
-		int m = DEF_MAX_BASE_QS+1;
-		//Create the cache for at least 10 alleles
-		if(numAlleles<10) numAlleles=10;
-			//Update to 50 if needed
-		else if (numAlleles<50) numAlleles = 50;
-			//Update to the maximum if needed
-		else if(numAlleles<=GenomicVariant.MAX_NUM_ALLELES)numAlleles=GenomicVariant.MAX_NUM_ALLELES;
-		int n = numAlleles+1;
-		if(logProbCacheError!=null && logProbCacheError.length>=n) return;
-		logProbCacheError = new double [m][n];
-
-		for(byte i=DEF_MIN_BASE_QS;i<logProbCacheError.length;i++) {
-			//Log of error probability for quality score i
-			logProbCacheError[i][0] = -0.1*i;
-			for(int j=2;j<logProbCacheError[i].length;j++) {
-				//Error probability divided by number of alleles minus 1
-				logProbCacheError[i][j]=logProbCacheError[i][0]-Math.log10(j-1);
-			}
-		}
-		alleleFreqCache = new double [DEF_NUM_FREQUENCIES][2];
-		logProbCacheGT = new double [DEF_NUM_FREQUENCIES][m][n];
-		for(int f=0;f<DEF_NUM_FREQUENCIES;f++) {
-			updateProbabilitiesCacheFrequency (f);
-		}
-		NormalDistribution nd = new NormalDistribution(0, 1);
-		logProbSVNormDistCache = new double[1001];
-		double zScore = 0.0000000000001;
-		for(int i = 0; i < logProbSVNormDistCache.length; i++){
-			logProbSVNormDistCache[i] = Math.log10(nd.probability(zScore));
-			zScore += LongReadStructuralVariantDetector.NORM_DIST_BIN_SIZE;
-		}
-	}
-	private void updateProbabilitiesCacheFrequency(int f) {
-		double alleleFrequency = (double)f/(DEF_NUM_FREQUENCIES-1);
-		alleleFreqCache[f][0] = Math.log10(alleleFrequency);
-		alleleFreqCache[f][1] = Math.log10(1-alleleFrequency);
-		for(byte i=DEF_MIN_BASE_QS;i<logProbCacheError.length;i++) {
-			double errorProb = PhredScoreHelper.calculateProbability(i);
-			double successProb = 1-errorProb;
-			logProbCacheGT[f][i][0] = Math.log10(successProb);
-			for(int j=2;j<logProbCacheError[i].length;j++) {
-				double hetProb = alleleFrequency*successProb+(1-alleleFrequency)*errorProb/(j-1);
-				logProbCacheGT[f][i][j] = Math.log10(hetProb);
-				/*
-				logProbCache[i][j][2] = Math.log10(epa);
-				double term = 0.5*(1-j*epa);
-				logProbCache[i][j][0] = Math.log10(successProb-term);
-				logProbCache[i][j][1] = Math.log10(epa+term);*/
-			}
-		}
-
-	}
+	
 	/**
 	 * Starts all counts to zero
 	 */
