@@ -293,9 +293,11 @@ public class AssemblyGraph {
 		return embeddedMapBySequence.size();
 	}
 
-	public synchronized void addPath(AssemblyPath path) {
-		paths.add(path);
-		for(AssemblyEdge edge:path.getEdges()) edge.setLayoutEdge(true);
+	public void addPath(AssemblyPath path) {
+		synchronized (paths) {
+			paths.add(path);
+			for(AssemblyEdge edge:path.getEdges()) edge.setLayoutEdge(true);
+		}
 	}
 	
 	public List<AssemblyVertex> getVertices() {
