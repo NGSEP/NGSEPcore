@@ -484,6 +484,14 @@ public class ReadAlignment implements GenomicRegion {
 		return (flags & FLAG_PCR_DUP)!=0;
 	}
 	/**
+	 * Changes the supplementary status
+	 * @param supplementary true if the alignment is supplementary
+	 */
+	public void setSupplementary (boolean supplementary) {
+		if(supplementary) flags = flags | FLAG_SUPPLEMENTARY;
+		else flags = flags & ~FLAG_SUPPLEMENTARY;
+	}
+	/**
 	 * Tells if the alignment is supplementary
 	 * @return boolean true if the alignment is supplementary
 	 */
@@ -520,6 +528,7 @@ public class ReadAlignment implements GenomicRegion {
 	public boolean isMateSameSequence () {
 		return (flags & FLAG_MATE_DIFFERENT_SEQUENCE)==0;
 	}
+
 	
 	/**
 	 * Provides the read name
@@ -1384,6 +1393,23 @@ public class ReadAlignment implements GenomicRegion {
 			return getCigarItemLength(alignment.length-1);
 		}
 		return 0;
+	}
+	
+	public void addHardClipStart(int length) {
+		int [] newAln = new int[alignment.length+1];
+		newAln[0] = getAlnValue(length, ALIGNMENT_HARDCLIP);
+		for(int i=0;i<alignment.length;i++) {
+			newAln[i+1] = alignment[i];
+		}
+		alignment = newAln;
+	}
+	public void addHardClipEnd(int length) {
+		int [] newAln = new int[alignment.length+1];
+		for(int i=0;i<alignment.length;i++) {
+			newAln[i] = alignment[i];
+		}
+		newAln[alignment.length] = getAlnValue(length, ALIGNMENT_HARDCLIP);
+		alignment = newAln;
 	}
 
 	/**

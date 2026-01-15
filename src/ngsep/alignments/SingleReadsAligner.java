@@ -16,6 +16,7 @@ public class SingleReadsAligner {
 	private double minProportionBestCount = 0.2;
 	private double minClusterKmersCount = 1;
 	private int maxAlnsPerRead=1;
+	private int minLengthSupplementaryAln = 500;
 	
 	
 	public SingleReadsAligner(ReferenceGenome genome, UngappedSearchHitsClustersFinder hitClustersFinder, UngappedSearchHitsClusterAligner aligner) {
@@ -44,6 +45,48 @@ public class SingleReadsAligner {
 		this.maxAlnsPerRead = maxAlnsPerRead;
 	}
 	public List<ReadAlignment> alignRead (QualifiedSequence read) {
+		List<ReadAlignment> rawAlignments = findRawAlignments(read);
+		List<ReadAlignment> filteredAlignments = filterAlignments(rawAlignments);
+		List<ReadAlignment> answer = new ArrayList<ReadAlignment>();
+		for(ReadAlignment aln:filteredAlignments) {
+			answer.add(aln);
+			int scs = aln.getSoftClipStart();
+			int sce = aln.getSoftClipEnd();
+			//Softclip at the start of the reads
+			if((aln.isPositiveStrand() && scs>=minLengthSupplementaryAln) || (aln.isNegativeStrand() && sce>=minLengthSupplementaryAln) ) {
+				int lengthRemap = aln.isPositiveStrand()?scs:sce;
+				CharSequence subread = read.getCharacters().subSequence(0, lengthRemap);
+				String qs = read.getQualityScores().substring(0,lengthRemap);
+				List<ReadAlignment> subalns = findRawAlignments(new RawRead(read.getName(), subread, qs));
+				if(subalns.size()>0) {
+					Collections.sort(subalns, (aln1,aln2) -> aln2.getAlignmentQuality() - aln1.getAlignmentQuality());
+					ReadAlignment bestSubaln = subalns.get(0);
+					bestSubaln.setSupplementary(true);
+					if(bestSubaln.isPositiveStrand()) bestSubaln.addHardClipEnd(read.getLength()-lengthRemap);
+					else bestSubaln.addHardClipStart(read.getLength()-lengthRemap);
+					answer.add(bestSubaln);
+				}	
+			}
+			//Softclip at the end of the reads
+			if((aln.isPositiveStrand() && sce>=minLengthSupplementaryAln) || (aln.isNegativeStrand() && scs>=minLengthSupplementaryAln) ) {
+				int lengthRemap = aln.isPositiveStrand()?sce:scs;
+				CharSequence subread = read.getCharacters().subSequence(read.getLength()-lengthRemap,read.getLength());
+				String qs = read.getQualityScores().substring(read.getLength()-lengthRemap);
+				List<ReadAlignment> subalns = findRawAlignments(new RawRead(read.getName(), subread, qs));
+				if(subalns.size()>0) {
+					Collections.sort(subalns, (aln1,aln2) -> aln2.getAlignmentQuality() - aln1.getAlignmentQuality());
+					ReadAlignment bestSubaln = subalns.get(0);
+					bestSubaln.setSupplementary(true);
+					//System.err.println("Subaln found for read. Main aln positive: "+aln.isPositiveStrand()+" subaln positive:"+bestSubaln.isPositiveStrand());
+					if(bestSubaln.isPositiveStrand()) bestSubaln.addHardClipStart(read.getLength()-lengthRemap);
+					else bestSubaln.addHardClipEnd(read.getLength()-lengthRemap);
+					answer.add(bestSubaln);
+				}	
+			}
+		}
+		return answer;
+	}
+	private List<ReadAlignment> findRawAlignments(QualifiedSequence read) {
 		boolean debug = false;
 		if (debug) System.out.println("Read: "+read.getName()+" length: : "+read.getLength());
 		List<ReadAlignment> alignments = new ArrayList<>();
@@ -86,14 +129,7 @@ public class SingleReadsAligner {
 			if(!aln.isNegativeStrand()) aln.setQualityScores(qual);
 			else aln.setQualityScores(reverseQS);
 		}
-		return filterAlignments(alignments);
-	}
-	public List<ReadAlignment> alignQuerySequence(CharSequence query) {
-		List<UngappedSearchHitsCluster> clusters = hitClustersFinder.findHitClusters(query);
-		double maxCount = summarize(clusters);
-		double limitCount = Math.max(minClusterKmersCount, minProportionBestCount*maxCount);
-		List<ReadAlignment> alns = buildAlignments(query, clusters, limitCount);
-		return filterAlignments(alns);
+		return alignments;
 	}
 	
 	public List<ReadAlignment> buildAlignments(CharSequence query, List<UngappedSearchHitsCluster> clusters, double limitCount) {
@@ -137,14 +173,17 @@ public class SingleReadsAligner {
 		//TODO. Investigate alignment score
 		int threshold = (int) (0.8*bestQual);
 		List<ReadAlignment> filteredAlignments = new ArrayList<>();
+		int n = 0;
 		for (int i=0;i<alignments.size();i++) {
 			ReadAlignment aln = alignments.get(i);	
 			//System.out.println("Aln: "+aln+" qual: "+aln.getAlignmentQuality()+" threshold "+threshold);
 			if(aln.getAlignmentQuality()<threshold) break;
-			if(i>0) aln.setSecondary(true);
+			if(!aln.isSupplementary()) {
+				n++;
+				if(i>0) aln.setSecondary(true);
+			}
 			filteredAlignments.add(aln);
 		}
-		int n = filteredAlignments.size();
 		
 		if(n>1) {
 			for(ReadAlignment aln:filteredAlignments) {
@@ -153,7 +192,12 @@ public class SingleReadsAligner {
 		}
 		int limit = Math.min(maxAlnsPerRead, filteredAlignments.size());
 		List<ReadAlignment> finalAlignments = new ArrayList<>();
-		for (int i=0;i<limit;i++) finalAlignments.add(filteredAlignments.get(i));
+		n=0;
+		for (ReadAlignment aln:filteredAlignments) {
+			finalAlignments.add(aln);
+			if(!aln.isSupplementary()) n++;
+			if(n==limit) break;
+		}
 		
 		//System.out.println("Initial alignments: "+alignments.size()+" filtered "+filteredAlignments.size()+" param: "+maxAlnsPerRead+" limit: "+limit+" final: "+finalAlignments.size());
 		return finalAlignments;
