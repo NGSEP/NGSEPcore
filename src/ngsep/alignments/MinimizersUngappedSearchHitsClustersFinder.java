@@ -83,7 +83,7 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 		ShortKmerCodesSampler sampler = new ShortKmerCodesSampler();
 		sampler.setKmerLength(kmerLength);
 		sampler.setWindowLength(windowLength);
-		kmerCodesTable = new ShortKmerCodesTable(sampler,10*n*longestSequenceLengthMbp,true);
+		kmerCodesTable = new ShortKmerCodesTable(sampler,10*n*longestSequenceLengthMbp);
 		tableKmerLength = kmerLength;
 		if(buildKmersTable) {
 			//log.info("Calculating kmers distribution");
@@ -120,7 +120,6 @@ public class MinimizersUngappedSearchHitsClustersFinder implements UngappedSearc
 			e.printStackTrace();
 			throw new RuntimeException("Concurrence error creating codes table",e);
 		}
-		kmerCodesTable.endAddingSequences();
 		//minimizersTable.calculateDistributionHits().printDistribution(System.err);
 		log.info("Calculated kmer codes. Total: "+kmerCodesTable.size());
 	}

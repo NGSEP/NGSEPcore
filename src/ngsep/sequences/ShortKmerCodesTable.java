@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import ngsep.main.ThreadPoolManager;
 import ngsep.math.Distribution;
 import ngsep.math.EntropyCalculator;
 import ngsep.math.ShannonEntropyCalculator;
@@ -62,17 +61,16 @@ public class ShortKmerCodesTable {
 	private String [] locks;
 	
 	private long totalEntries = 0;
-	private ThreadPoolManager poolAddKmerCodes;
 	
 	
 	public ShortKmerCodesTable(ShortKmerCodesSampler sampler) {
-		this(sampler,100000, false);
+		this(sampler,100000);
 	}
-	public ShortKmerCodesTable(ShortKmerCodesSampler sampler, int capacity, boolean useThreadToAddCodes) {
+	public ShortKmerCodesTable(ShortKmerCodesSampler sampler, int capacity) {
 		this.codesSampler = sampler;
-		initializeTable(capacity, useThreadToAddCodes);
+		initializeTable(capacity);
 	}
-	private void initializeTable(int capacity, boolean useThreadToAddCodes) {
+	private void initializeTable(int capacity) {
 		matrixRowMap = new HashMap<Long, Integer>(capacity);
 		sequencesByCodeTable = new long [capacity][1];
 		for(int i=0;i<sequencesByCodeTable.length;i++) Arrays.fill(sequencesByCodeTable[i], 0);
@@ -81,10 +79,6 @@ public class ShortKmerCodesTable {
 		locks = new String[capacity];
 		for(int i=0;i<capacity;i++) {
 			locks[i] = ""+i;
-		}
-		if(useThreadToAddCodes) {
-			poolAddKmerCodes = new ThreadPoolManager(1, 100);
-			//poolAddKmerCodes.setSecondsPerTask(5);
 		}
 	}
 
@@ -221,14 +215,7 @@ public class ShortKmerCodesTable {
 	}
 	private void addCodesSequenceTask(int sequenceId, int n, List<KmerCodesTableEntry> codesSeq) {
 		final List<KmerCodesTableEntry> codesSeqToAdd = new ArrayList<KmerCodesTableEntry>(codesSeq);
-		if(poolAddKmerCodes!=null) {
-			try {
-				poolAddKmerCodes.queueTask(()->addCodesSequence(sequenceId, n, codesSeqToAdd));
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-				throw new RuntimeException("Concurrence error creating minimizers table",e);
-			}
-		} else addCodesSequence(sequenceId, n, codesSeqToAdd);
+		addCodesSequence(sequenceId, n, codesSeqToAdd);
 	}
 	private void addCodesSequence(int sequenceId, int seqLen, List<KmerCodesTableEntry> codesSeq) {
 		//long startTime = System.currentTimeMillis();
@@ -238,14 +225,6 @@ public class ShortKmerCodesTable {
 		//long time = (System.currentTimeMillis()-startTime)/1000;
 		//if(seqLen>1000000) log.info("Sequence "+sequenceId+" length: "+seqLen+" entries added: "+codesSeq.size()+" time(s): "+time);
 		codesSeq.clear();
-	}
-	public void endAddingSequences() {
-		try {
-			poolAddKmerCodes.terminatePool();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-			throw new RuntimeException("Concurrence error creating minimizers table",e);
-		}
 	}
 
 	/**

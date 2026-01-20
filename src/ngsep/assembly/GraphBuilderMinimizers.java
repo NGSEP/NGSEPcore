@@ -109,7 +109,7 @@ public class GraphBuilderMinimizers implements GraphBuilder {
 		
 		//Create the structures with appropriate initial capacity
 		int capacity = kmersAnalyzer.getKmersMap().size()/10;
-		ShortKmerCodesTable table = new ShortKmerCodesTable(sampler,capacity,false);
+		ShortKmerCodesTable table = new ShortKmerCodesTable(sampler,capacity);
 		table.setLog(log);
 		table.setMode(modeDepth);
 		table.setKmerDistModeLocalSD(kmersAnalyzer.getModeLocalSD());
