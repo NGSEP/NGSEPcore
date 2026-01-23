@@ -254,11 +254,11 @@ public class PairedReadsAligner {
 				qs = read2.getQualityScores();
 				readLength = read2.getLength();
 			}
-			if(qs == null || qs.length()!=readLength) {
-				qs = RawRead.generateFixedQSString('5', readLength);
-			} else if (aln.isNegativeStrand()) {
-				qs = new StringBuilder(qs).reverse().toString();
+			if(qs!=null && qs.length()!=readLength) {
+				System.err.println("WARNING. Inconsistent length of quality scores for read. "+aln.getReadName()+". Read length: "+readLength+" scores length: "+qs.length()+". Ignoring scores");
+				qs = null;
 			}
+			if(qs!=null && aln.isNegativeStrand()) qs = new StringBuilder(qs).reverse().toString();
 			aln.setQualityScores(qs);
 		}
 		return alns;

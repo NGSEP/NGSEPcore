@@ -602,7 +602,7 @@ public class ReadAlignment implements GenomicRegion {
 			return;
 		}
 		int l = qualityScores.length();
-		if(l>readLength) System.err.println("WARN. Setting quality scores longer than read length. Read name: "+new String(readName)+" length: "+readLength+" scores length: "+l);
+		if(l!=readLength) System.err.println("WARN. Setting quality scores different than read length. Read name: "+new String(readName)+" length: "+readLength+" scores length: "+l);
 		this.qualityScores = new byte [readLength];
 		Arrays.fill(this.qualityScores, (byte)38);
 		for(int i=0;i<l && i<readLength;i++) {
@@ -1074,7 +1074,11 @@ public class ReadAlignment implements GenomicRegion {
 		if(readFirst<0 || readLast<0  || readLast < readFirst) return null;
 		if(withinIgnoreRegions(readFirst, readLast)) return null;
 		if(qualityScores == null) return RawRead.generateFixedQSString('+', readLast-readFirst+1);
-		return getQualityScores().substring(readFirst,readLast+1);
+		char [] qs = new char[readLast-readFirst+1];
+		for(int i=0;i<qs.length;i++) {
+			qs[i] = (char)qualityScores[readFirst+i];
+		}
+		return new String(qs);
 	}
 	private boolean withinIgnoreRegions (int readFirst, int readLast) {
 		return readFirst<basesToIgnoreStart || readLength - readLast <= basesToIgnoreEnd;

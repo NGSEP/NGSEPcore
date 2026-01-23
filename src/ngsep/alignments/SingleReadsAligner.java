@@ -56,7 +56,9 @@ public class SingleReadsAligner {
 			if((aln.isPositiveStrand() && scs>=minLengthSupplementaryAln) || (aln.isNegativeStrand() && sce>=minLengthSupplementaryAln) ) {
 				int lengthRemap = aln.isPositiveStrand()?scs:sce;
 				CharSequence subread = read.getCharacters().subSequence(0, lengthRemap);
-				String qs = read.getQualityScores().substring(0,lengthRemap);
+				
+				String qs = read.getQualityScores();
+				if(qs!=null) qs = qs.substring(0,lengthRemap);
 				List<ReadAlignment> subalns = findRawAlignments(new RawRead(read.getName(), subread, qs));
 				if(subalns.size()>0) {
 					Collections.sort(subalns, (aln1,aln2) -> aln2.getAlignmentQuality() - aln1.getAlignmentQuality());
@@ -71,7 +73,8 @@ public class SingleReadsAligner {
 			if((aln.isPositiveStrand() && sce>=minLengthSupplementaryAln) || (aln.isNegativeStrand() && scs>=minLengthSupplementaryAln) ) {
 				int lengthRemap = aln.isPositiveStrand()?sce:scs;
 				CharSequence subread = read.getCharacters().subSequence(read.getLength()-lengthRemap,read.getLength());
-				String qs = read.getQualityScores().substring(read.getLength()-lengthRemap);
+				String qs = read.getQualityScores();
+				if(qs!=null) qs = qs.substring(read.getLength()-lengthRemap);
 				List<ReadAlignment> subalns = findRawAlignments(new RawRead(read.getName(), subread, qs));
 				if(subalns.size()>0) {
 					Collections.sort(subalns, (aln1,aln2) -> aln2.getAlignmentQuality() - aln1.getAlignmentQuality());
@@ -92,42 +95,39 @@ public class SingleReadsAligner {
 		List<ReadAlignment> alignments = new ArrayList<>();
 		String readSeq = read.getCharacters().toString();
 		String qual = read.getQualityScores();
-		String reverseQS = null;
-		if(qual == null || qual.length()!=readSeq.length()) {
-			qual = RawRead.generateFixedQSString('5', readSeq.length());
-			reverseQS = qual;
-		} else {
-			reverseQS = new StringBuilder(qual).reverse().toString();
+		if(qual!=null && qual.length()!=readSeq.length()) {
+			System.err.println("WARNING. Inconsistent length of quality scores for read. "+read.getName()+". Read length: "+readSeq.length()+" scores length: "+qual.length()+". Ignoring scores");
+			qual = null;
 		}
+		
 		String reverseComplement =  DNAMaskedSequence.getReverseComplement(readSeq).toString();
 		//Filter clusters together for forward and reverse
 		List<UngappedSearchHitsCluster> clustersF = hitClustersFinder.findHitClusters(readSeq);
 		double maxCount = summarize(clustersF);
 		if (debug) System.out.println("Read: "+read.getName()+" Forward clusters: "+clustersF.size()+" max count F: "+maxCount);
-		List<UngappedSearchHitsCluster> clustersR = null;
-		if(reverseComplement!=null) {
-			clustersR = hitClustersFinder.findHitClusters(reverseComplement);
-			double maxCountR = summarize(clustersR);
-			if (debug) System.out.println("Read: "+read.getName()+" Reverse clusters: "+clustersR.size()+" max count R: "+maxCountR);
-			maxCount = Math.max(maxCount, maxCountR);
-		}
+		List<UngappedSearchHitsCluster> clustersR = hitClustersFinder.findHitClusters(reverseComplement);
+		double maxCountR = summarize(clustersR);
+		if (debug) System.out.println("Read: "+read.getName()+" Reverse clusters: "+clustersR.size()+" max count R: "+maxCountR);
+		maxCount = Math.max(maxCount, maxCountR);
 		double limitCount = Math.max(minClusterKmersCount, minProportionBestCount*maxCount);
 		if (debug) System.out.println("Read: "+read.getName()+" max count: "+maxCount+ " limitCount: "+limitCount);
 		List<ReadAlignment> alnsF = buildAlignments(readSeq, clustersF, limitCount);
 		if (debug) System.out.println("Read: "+read.getName()+" Forward alignments: "+alnsF.size());
 		alignments.addAll(alnsF);
-		if(clustersR!=null) {
-			List<ReadAlignment> alnsR = buildAlignments(reverseComplement, clustersR, limitCount);
-			if (debug) System.out.println("Read: "+read.getName()+" Reverse alignments: "+alnsR.size());
-			for (ReadAlignment aln:alnsR) aln.setNegativeStrand(true);
-			alignments.addAll(alnsR);
-		}
+		List<ReadAlignment> alnsR = buildAlignments(reverseComplement, clustersR, limitCount);
+		if (debug) System.out.println("Read: "+read.getName()+" Reverse alignments: "+alnsR.size());
+		for (ReadAlignment aln:alnsR) aln.setNegativeStrand(true);
+		alignments.addAll(alnsR);
 		
 		//System.out.println("Read: "+read.getName()+" total alignments: "+alignments.size());
+		String reverseQS = null;
+		if(qual!=null) {
+			reverseQS = new StringBuilder(qual).reverse().toString(); 
+		}
 		for(ReadAlignment aln:alignments) {
 			aln.setReadName(read.getName());
-			if(!aln.isNegativeStrand()) aln.setQualityScores(qual);
-			else aln.setQualityScores(reverseQS);
+			if (aln.isNegativeStrand()) aln.setQualityScores(reverseQS);
+			else aln.setQualityScores(qual);
 		}
 		return alignments;
 	}
