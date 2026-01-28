@@ -525,14 +525,15 @@ public class AlignmentsPileupGenerator {
 			if(currentReferencePos==posPrint)System.out.println("Next pending: "+aln.getReadName()+" located at "+aln.getSequenceName()+":"+aln.getFirst()+"-"+aln.getLast()+". group: "+aln.getReadGroup()+" cigar: "+aln.getCigarString());
 			pileup.addAlignment(aln);
 		}
-		if(currentReferencePos==posPrint)System.out.println("Number of alignments in pileup: "+pileup.getNumAlignments()+". time: "+System.currentTimeMillis());
+		if(currentReferencePos==posPrint)System.out.println("Number of alignments in pileup: "+pileup.getNumAlignments());
 		boolean answer = pileup.getNumAlignments()>0;
 		if(realignIndels) {
 			irl.onPileup(pileup);
 		}
+		if(currentReferencePos==posPrint)System.out.println("Number of alignments in pileup after realignment: "+pileup.getNumAlignments());
 		if(pendingPileups.size()>=MAX_SIZE_PENDING_PILEUPS && pileup.getReferenceSpan()==1) processPendingPileups();
 		pendingPileups.add(pileup);
-		if(currentReferencePos==posPrint)System.out.println("Added pileup to the queue. time: "+System.currentTimeMillis());
+		if(currentReferencePos==posPrint)System.out.println("Added pileup to the queue");
 		currentReferencePos++;
 		return answer;
 	}

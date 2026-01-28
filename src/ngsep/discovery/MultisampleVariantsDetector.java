@@ -45,6 +45,7 @@ import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.GenomicVariant;
+import ngsep.variants.SNV;
 import ngsep.variants.Sample;
 import ngsep.vcf.VCFFileHeader;
 import ngsep.vcf.VCFFileReader;
@@ -529,7 +530,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	@Override
 	public void onPileup(PileupRecord pileup) {
 		if(inputVariants.size()==0) {
-			String referenceAllele = SingleSampleVariantPileupListener.calculateReferenceAlleleDiscovery(pileup,genome,callEmbeddedSNVs,ignoreLowerCaseRef);
+			String referenceAllele = SingleSampleVariantPileupListener.calculateReferenceAlleleDiscovery(pileup,genome,ignoreLowerCaseRef);
 			if(referenceAllele==null) return;
 			
 			GenomicVariant variant = discoverPopulationVariant(pileup,referenceAllele);
@@ -569,19 +570,36 @@ public class MultisampleVariantsDetector implements PileupListener {
 
 	@Override
 	public void onSequenceEnd(QualifiedSequence sequence) {
-		writer.printVCFRecords(sequenceRecords.asList(), outFile);
+		List<VCFRecord> filteredRecords = filterEmbeddedRecords (sequenceRecords.asList());
+		writer.printVCFRecords(filteredRecords, outFile);
 		sequenceRecords.clear();
 	}
 	
+	private List<VCFRecord> filterEmbeddedRecords(List<VCFRecord> allRecords) {
+		List<VCFRecord> answer = new ArrayList<VCFRecord>();
+		String lastSeqName = null;
+		int lastCovered = -1;
+		for(VCFRecord record:allRecords) {
+			boolean sameSeq = record.getSequenceName().equals(lastSeqName); 
+			if(sameSeq && record.getLast()<=lastCovered) {
+				//Embedded variant
+				if(!(record.getVariant() instanceof SNV)) continue;
+				if(callEmbeddedSNVs) record.getVariant().setType(GenomicVariant.TYPE_EMBEDDED_SNV);
+				else continue;
+			}
+			if(!sameSeq) lastCovered = -1;
+			answer.add(record);
+			lastSeqName = record.getSequenceName();
+			lastCovered = Math.max(lastCovered, record.getLast());
+		}
+		return answer;
+	}
 	public GenomicVariant discoverPopulationVariant(PileupRecord pileup, String referenceAllele) {
 		GenomicVariant variant;
 		if(referenceAllele.length()>1) {
 			variant = discoverPopulationVariantWithSpan(pileup, referenceAllele);
 		} else {
 			variant = discoverPopulationSNV(pileup, referenceAllele.charAt(0));
-		}
-		if(variant != null) {
-			if(variant.isSNV() && pileup.isEmbedded()) variant.setType(GenomicVariant.TYPE_EMBEDDED_SNV);
 		}
 		return variant;
 	}

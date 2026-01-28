@@ -44,7 +44,6 @@ public class PileupRecord {
 	private int numNegativeStrandAlns = 0;
 	private boolean str = false;
 	private boolean newSTR = false;
-	private boolean embedded = false;
 	
 	//DEBUG
 	private int posPrint = -1;
@@ -190,14 +189,6 @@ public class PileupRecord {
 	}
 	public boolean isInputSTR() {
 		return this.str && !newSTR;
-	}
-
-	public boolean isEmbedded() {
-		return embedded;
-	}
-
-	public void setEmbedded(boolean embedded) {
-		this.embedded = embedded;
 	}
 	
 	public double calculateStrandBiasPValue () {

@@ -35,6 +35,7 @@ import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
+import ngsep.variants.CalledSNV;
 import ngsep.variants.GenomicVariant;
 import ngsep.variants.GenomicVariantImpl;
 import ngsep.variants.SNV;
@@ -137,14 +138,30 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		this.inputVariants = inputVariants;
 	}
 	public List<CalledGenomicVariant> getCalledVariants() {
-		return calledVariants.asList();
+		List<CalledGenomicVariant> filteredCalls = new ArrayList<CalledGenomicVariant>();
+		String lastSeqName = null;
+		int lastCovered = -1;
+		for(CalledGenomicVariant var:calledVariants) {
+			boolean sameSeq = var.getSequenceName().equals(lastSeqName); 
+			if(sameSeq && var.getLast()<=lastCovered) {
+				//Embedded variant
+				if(!(var instanceof CalledSNV)) continue;
+				if(callEmbeddedSNVs) var.setType(GenomicVariant.TYPE_EMBEDDED_SNV);
+				else continue;
+			}
+			if(!sameSeq) lastCovered = -1;
+			filteredCalls.add(var);
+			lastSeqName = var.getSequenceName();
+			lastCovered = Math.max(lastCovered, var.getLast());
+		}
+		return filteredCalls;
 	}
 	private GenomicRegionSortedCollection<GenomicVariant> seqInputVariants;
 	@Override
 	public void onPileup(PileupRecord pileup) {
 		if(inputVariants.size()==0) {
-			if(pileup.getPosition()==posPrint) System.out.println("InputSTR: "+pileup.isInputSTR()+" span: "+pileup.getReferenceSpan());
-			String referenceAllele = SingleSampleVariantPileupListener.calculateReferenceAlleleDiscovery(pileup,genome,callEmbeddedSNVs,ignoreLowerCaseRef);
+			if(pileup.getPosition()==posPrint) System.out.println("InputSTR: "+pileup.isInputSTR()+" span: "+pileup.getReferenceSpan()+" reads: "+pileup.getNumAlignments());
+			String referenceAllele = SingleSampleVariantPileupListener.calculateReferenceAlleleDiscovery(pileup,genome,ignoreLowerCaseRef);
 			if(referenceAllele == null) return;
 			CalledGenomicVariant calledVar = discoverVariant(pileup, referenceAllele);
 			if(calledVar!=null) {
@@ -181,20 +198,13 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	public void clear() {
 		calledVariants.clear();
 	}
-	static String calculateReferenceAlleleDiscovery(PileupRecord pileup, ReferenceGenome genome, boolean callEmbeddedSNVs, boolean ignoreLowerCaseRef) {
-		String referenceAllele;
-		if(!callEmbeddedSNVs && pileup.isEmbedded()) return null;
+	static String calculateReferenceAlleleDiscovery(PileupRecord pileup, ReferenceGenome genome, boolean ignoreLowerCaseRef) {
 		int last = pileup.getPosition()+pileup.getReferenceSpan()-1;
 		CharSequence seq = genome.getReference(pileup.getSequenceName(), pileup.getPosition(), last);
 		if(seq == null) return null;
-		referenceAllele = seq.toString();
+		String referenceAllele = seq.toString();
 		if(ignoreLowerCaseRef && Character.isLowerCase(referenceAllele.charAt(0))) return null;
 		referenceAllele = referenceAllele.toUpperCase();
-		
-		if(pileup.isEmbedded()) {
-			referenceAllele = referenceAllele.substring(0,1);
-			pileup.setSTR(false);
-		}
 		return referenceAllele;
 	}
 	/**
@@ -205,28 +215,30 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	 */
 	public CalledGenomicVariant discoverVariant(PileupRecord pileup, String referenceAllele) {
 		
-		if(pileup.getPosition()==posPrint) System.out.println("Processing pileup at "+pileup.getSequenceName()+":"+pileup.getPosition()+" span: "+pileup.getReferenceSpan()+" reference: "+referenceAllele);
+		if(pileup.getPosition()==posPrint) System.out.println("Processing pileup at "+pileup.getSequenceName()+":"+pileup.getPosition()+" span: "+pileup.getReferenceSpan()+" reference: "+referenceAllele+" reads: "+pileup.getNumAlignments());
 		CalledGenomicVariant calledVar;
 		if(referenceAllele.length()>1) {
 			calledVar = discoverVariantWithSpan(pileup, referenceAllele);
 		} else {
 			calledVar = discoverSNV(pileup, referenceAllele.charAt(0));
 		}
+		if(pileup.getPosition()==posPrint && calledVar!=null) System.out.println("New candidate variant at "+calledVar.getSequenceName()+":"+calledVar.getFirst()+". Type: "+calledVar.getType()+" undecided: "+calledVar.isUndecided()+" homoref: "+calledVar.isHomozygousReference()+" quality: "+calledVar.getGenotypeQuality());
 		//Ignore call if it is not variant with enough quality. To change if the genotype all function is brought back
 		if(calledVar!=null && (calledVar.isUndecided() || calledVar.isHomozygousReference() || minQuality>calledVar.getGenotypeQuality())) calledVar = null;
 		if(calledVar != null) {
 			calledVar.setSampleId(sample.getId());
 			calledVar.updateAllelesCopyNumberFromCounts(sample.getNormalPloidy());
-			if(calledVar.isSNV() && pileup.isEmbedded()) calledVar.setType(GenomicVariant.TYPE_EMBEDDED_SNV);	
 		}
 		//System.out.println("Called variant at "+calledVar.getSequenceName()+":"+calledVar.getFirst()+" pileup variant type: "+pileup.getVariantType()+" variant type: "+calledVar.getType());
-		//if(pileup.getPosition()==3892) System.out.println("New variant at "+calledVar.getSequenceName()+":"+calledVar.getFirst()+". Repeat context: "+calledVar.getRepeatContext());
+		if(pileup.getPosition()==posPrint && calledVar!=null) System.out.println("New variant at "+calledVar.getSequenceName()+":"+calledVar.getFirst()+". Type: "+calledVar.getType()+" quality: "+calledVar.getGenotypeQuality());
+		if(pileup.getPosition()==posPrint && calledVar==null) System.out.println("No variant called at"+pileup.getSequenceName()+":"+pileup.getPosition());
 		return calledVar;
 	}
 	
 	public CalledGenomicVariant discoverSNV(PileupRecord pileup, char reference) {
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(1,(String)null);
 		CountsHelper helperSNV = CountsHelper.calculateCountsSNV(calls, maxBaseQS, 0.5);
+		if(pileup.getPosition()==posPrint) System.out.println("Callin SNVs at "+pileup.getSequenceName()+":"+pileup.getPosition()+" Calls: "+pileup.getNumAlignments()+" helper counts: "+helperSNV.getTotalCount());
 		short ploidy = sample.getNormalPloidy();
 		if(ploidy<DEF_MIN_PLOIDY_POOL_ALGORITHM) {
 			return  VariantDiscoverySNVQAlgorithm.discoverSNV(helperSNV, pileup.getSequenceName(), pileup.getPosition(), reference, heterozygosityRate, calcStrandBias);

@@ -86,8 +86,6 @@ public class IndelRealignerPileupListener implements PileupListener {
 				referenceSpan = var.getLast() - var.getFirst() + 1;
 				predictedEventEnd = var.getLast();
 				if(currentPos==posPrint)System.out.println("IndelRealigner. Var span: "+referenceSpan+". Predicted end: "+predictedEventEnd+" Var type "+var.getType());
-			} else {
-				pileup.setEmbedded(true);
 			}
 		}
 		List<ReadAlignment> alignments = pileup.getAlignments();

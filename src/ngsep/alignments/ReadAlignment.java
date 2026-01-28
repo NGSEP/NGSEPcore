@@ -1026,12 +1026,15 @@ public class ReadAlignment implements GenomicRegion {
 	 * It can be more than one character, especially in the case of insertions.  
 	 */
 	public CharSequence getAlleleCall (int referencePos) {
+		//int posPrint = -1;
 		if(readCharacters ==null) return null;
 		int readPos = getAlignedReadPosition(referencePos);
+		//if(referencePos==posPrint) System.out.println("Readpos: "+readPos);
 		if(readPos<0) return null;
 		//if(readPos>=alleleCallLength.length) System.err.println("Invalid read position: "+readPos+" Read: "+getReadName()+" Located at "+sequenceName+":"+first+" last:"+last+". Length: "+readCharacters.length()+" CIGAR: "+getCigarString()+" expected length: "+expectedReadLength+" reference pos: "+referencePos);
 		//if(readPos>=alleleCallLength.length) System.err.println("Alignment: "+alignment[0]+" "+alignment[1]+" "+alignment[2]);
 		int length = alleleCallLength[readPos];
+		//if(referencePos==posPrint) System.out.println("Allele length: "+length);
 		if(length == 0) return null;
 		//if(referencePos==-1) System.out.println("ReadAlignment. Read id: "+getReadName()+". Sequence: "+readCharacters.toString()+". readpos: "+readPos+". end: "+(readPos+length)+" subseq: "+readCharacters.subSequence(readPos, readPos+length)+". length subseq: "+readCharacters.subSequence(readPos, readPos+length).length());
 		return readCharacters.subSequence(readPos, readPos+length);

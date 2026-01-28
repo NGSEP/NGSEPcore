@@ -98,6 +98,7 @@ public class VariantDiscoverySNVQAlgorithm {
 	//Calls the SNVQ algorithm from the counts stored in the counts helper object
 	//PRE: Reference base is uppercase
 	public static CalledGenomicVariant discoverSNV(CountsHelper countsHelper, String sequenceName, int position, char refBase, double heterozygosityRate, boolean calcStrandBias) {
+		if(position==posPrint) System.out.println("Processing site: "+sequenceName+":"+position+" reads count: "+countsHelper.getTotalCount()+" refbase: "+refBase+" refPos: "+DNASequence.BASES_STRING.indexOf(refBase));
 		if(countsHelper.getTotalCount()==0) {
 			return null;
 		}
@@ -356,7 +357,7 @@ public class VariantDiscoverySNVQAlgorithm {
 			if(calledAlleles.length==1 && calledAlleles[0]!=0) newCall.setStrandBiasScore(helper.getScoreStrandBiasFisher(0, calledAlleles[0]));
 			else if (calledAlleles.length==2) newCall.setStrandBiasScore(helper.getScoreStrandBiasFisher(calledAlleles[0], calledAlleles[1]));
 		}
-		//if(pileup.getFirst()==82) System.out.println("Indel alleles: "+newCall.getAlleles().length+" called alleles: "+calledAlleles[0]+" "+calledAlleles[1]+" genotype prob: "+newCall.getGenotypeProbability());
+		if(pileup.getPosition()==posPrint) System.out.println("Indel alleles: "+newCall.getAlleles().length+" called alleles: "+calledAlleles[0]+" "+(calledAlleles.length>1?calledAlleles[1]:"")+" Genotype quality: "+newCall.getGenotypeQuality());
 		return newCall;
 	}
 }
