@@ -208,7 +208,7 @@ public class PairedReadsAligner {
 						}
 					}
 					if(i>0) aln1.setSecondary(true);
-					if (aln1.getAlignmentQuality()>=50) aln1.setAlignmentQuality((byte) Math.round(0.5*aln1.getAlignmentQuality()));
+					if (aln1.getAlignmentQuality()>=10) aln1.setAlignmentQuality((byte) Math.round(0.5*aln1.getAlignmentQuality()));
 					alns.add(aln1);
 				}
 				if(alns1.size()==1 && alns1.get(0).getAlignmentQuality()>=20) numUniqueAlignments++;
@@ -230,7 +230,7 @@ public class PairedReadsAligner {
 						}
 					}
 					if(i>0) aln2.setSecondary(true);
-					if (aln2.getAlignmentQuality()>=50) aln2.setAlignmentQuality((byte) Math.round(0.5*aln2.getAlignmentQuality()));
+					if (aln2.getAlignmentQuality()>=10) aln2.setAlignmentQuality((byte) Math.round(0.5*aln2.getAlignmentQuality()));
 					alns.add(aln2);
 				}
 				if(alns2.size()==1 && alns2.get(0).getAlignmentQuality()>=20) numUniqueAlignments++;
@@ -457,7 +457,8 @@ public class PairedReadsAligner {
 	private List<ReadAlignment> alignAsSingle(CharSequence query, boolean r1, List<UngappedSearchHitsCluster> clusters) {
 		SingleReadsAligner singleReadsAligner = new SingleReadsAligner(genome, clustersFinder, aligner);
 		singleReadsAligner.setMaxAlnsPerRead(maxAlnsPerRead);
-		List<ReadAlignment> answer = singleReadsAligner.buildAlignments(query, clusters, 1);
+		List<ReadAlignment> rawAlns = singleReadsAligner.buildAlignments(query, clusters, 1);
+		List<ReadAlignment> answer = singleReadsAligner.filterAlignments(rawAlns);
 		for(ReadAlignment aln:answer) {
 			aln.setNegativeStrand(r1);
 			aln.setPaired(true);

@@ -30,7 +30,6 @@ import java.util.Set;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.io.SimpleGenomicRegionFileHandler;
-import ngsep.sequences.LimitedSequence;
 
 /**
  * @author German Andrade
@@ -106,11 +105,16 @@ public class ShortReadsUngappedSearchHitsClusterAligner  implements UngappedSear
 		CharSequence refSeq = subject.subSequence(first-1, last);
 		
 		//System.out.println("Aligning reference from "+first+" to "+last+ " to query. length: "+refSeq.length());
+		//System.out.println("Query: "+query);
+		//System.out.println("Subjc: "+refSeq.toString());
 		completeAlns++;
 		PairwiseAlignerAffineGap alignerFullRead = createAlignerFullRead(Math.max(query.length(), refSeq.length()));
 		PairwiseAlignment rawAln = alignerFullRead.calculateAlignment(query, refSeq.toString());
 		int mismatches = rawAln.getMismatches();
-		if(mismatches>0.1*query.length()) return null;
+		//System.out.println("QueryAln: "+rawAln.getAlignedSequence1());
+		//System.out.println("SubjcAln: "+rawAln.getAlignedSequence2());
+		//System.out.println("Mismatches: "+mismatches);
+		if(mismatches>0.25*query.length()) return null;
 		LinkedList<Integer> alnCodes = ReadAlignment.encodePairwiseAlignment(rawAln);
 		aln = buildAln(query, subjectIdx, subject, first, last, alnCodes);
 		if(aln==null) return null;

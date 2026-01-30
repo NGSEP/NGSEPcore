@@ -93,20 +93,21 @@ public class PairwiseAlignment {
 	}
 	private int countMismatches() {
 		int answer = 0;
-		boolean lastIsGap = true;
+		int nextGapMismatches = 0;
+		boolean started = false;
 		for(int i=0;i<alignedSequence1.length();i++) {
 			char c1 = alignedSequence1.charAt(i);
 			char c2 = alignedSequence2.charAt(i);
 			if(c1==LimitedSequence.GAP_CHARACTER || c2 == LimitedSequence.GAP_CHARACTER) {
-				if(!lastIsGap) answer+=2;
-				else answer++;
-				lastIsGap = true;
+				nextGapMismatches++;
+				if(nextGapMismatches==1) nextGapMismatches++;
 			} else {
 				if(c1!=c2) answer++;
-				lastIsGap = false;
+				if(started) answer+=nextGapMismatches;
+				else started = true;
+				nextGapMismatches=0;	
 			}
 		}
-		if(lastIsGap) answer-=2;
 		return answer;
 	}
 }

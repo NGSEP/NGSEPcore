@@ -47,6 +47,8 @@ public class SingleReadsAligner {
 	public List<ReadAlignment> alignRead (QualifiedSequence read) {
 		List<ReadAlignment> rawAlignments = findRawAlignments(read);
 		List<ReadAlignment> filteredAlignments = filterAlignments(rawAlignments);
+		if(read.getLength()<500) return filteredAlignments;
+		//Supplementary alignments for long reads
 		List<ReadAlignment> answer = new ArrayList<ReadAlignment>();
 		for(ReadAlignment aln:filteredAlignments) {
 			answer.add(aln);
@@ -166,7 +168,7 @@ public class SingleReadsAligner {
 		return maxCount;
 	}
 	
-	private List<ReadAlignment> filterAlignments(List<ReadAlignment> alignments) {
+	public List<ReadAlignment> filterAlignments(List<ReadAlignment> alignments) {
 		if (alignments.size()==0) return alignments;
 		Collections.sort(alignments, (aln1,aln2) -> aln2.getAlignmentQuality() - aln1.getAlignmentQuality());
 		short bestQual = alignments.get(0).getAlignmentQuality();
