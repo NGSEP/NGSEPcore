@@ -83,7 +83,7 @@ public class FMIndexUngappedSearchHitsClustersFinder implements UngappedSearchHi
 				continue;
 			}
 			for(UngappedSearchHit hit:kmerHits) {
-				//System.out.println("Next hit: "+hit.getSequenceName()+" "+hit.getStart());
+				//System.out.println("Next hit: "+hit.getSubjectIdx()+" "+hit.getSubjectStart());
 				hit.setQueryStart(start);
 				answer.add(hit);
 			}

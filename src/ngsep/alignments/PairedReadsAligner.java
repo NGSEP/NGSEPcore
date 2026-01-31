@@ -100,18 +100,23 @@ public class PairedReadsAligner {
 	
 	
 	public List<ReadAlignment> alignReads(RawRead read1, RawRead read2) {
+		boolean debug = false;
 		CharSequence query1F = read1.getCharacters();
 		CharSequence query1R = DNAMaskedSequence.getReverseComplement(query1F);
 		CharSequence query2F = read2.getCharacters();
 		CharSequence query2R = DNAMaskedSequence.getReverseComplement(query2F);
+		
 		List<UngappedSearchHitsCluster> clusters1F = clustersFinder.findHitClusters(query1F);
+		if(debug) System.out.println("Search forward of: "+read1.getName()+" seq: "+query1F+" hits: "+clusters1F.size());
 		List<UngappedSearchHitsCluster> clusters1R = clustersFinder.findHitClusters(query1R);
+		if(debug) System.out.println("Search reverse of: "+read1.getName()+" seq: "+query1R+" hits: "+clusters1R.size());
 		List<UngappedSearchHitsCluster> clusters2F = clustersFinder.findHitClusters(query2F);
-		//System.out.println("Searching reverse of: "+read2.getName());
+		if(debug) System.out.println("Search forward of: "+read2.getName()+" seq: "+query2F+" hits: "+clusters2F.size());
 		List<UngappedSearchHitsCluster> clusters2R = clustersFinder.findHitClusters(query2R);
+		if(debug) System.out.println("Search reverse of: "+read2.getName()+" seq: "+query2R+" hits: "+clusters2R.size());
 		ReadAlignment unmapped1 = ReadAlignment.createMockAlignmentUnmappedRead(read1, true, true);
 		ReadAlignment unmapped2 = ReadAlignment.createMockAlignmentUnmappedRead(read2, true, false); 
-		//System.out.println("Clusters found: "+clusters1F.size()+" "+clusters1R.size()+" "+clusters2F.size()+" "+clusters2R.size());
+		if(debug) System.out.println("Clusters found: "+clusters1F.size()+" "+clusters1R.size()+" "+clusters2F.size()+" "+clusters2R.size());
 		List<ReadAlignment> alns = new ArrayList<ReadAlignment>();
 		if(clusters1F.size()+clusters1R.size()==0) {
 			if (createUnmappedReadRecords) alns.add(unmapped1);
@@ -164,23 +169,24 @@ public class PairedReadsAligner {
 			List<ReadAlignmentPair> pairedAlns = new ArrayList<>();
 			pairedAlns.addAll( findPairs(query1F, clusters1F, false, query2R, clusters2R, true, true));
 			pairedAlns.addAll( findPairs(query1R, clusters1R, true, query2F, clusters2F, false, true));
-			//System.out.println("Pairs proper: "+pairedAlns.size());
+			if(debug) System.out.println("Pairs proper: "+pairedAlns.size());
 			properPair=pairedAlns.size()>0;
 			if(pairedAlns.isEmpty() ) {
 				pairedAlns.addAll(findPairs(query1F, clusters1F, false, query2R, clusters2R, true, false));
 				pairedAlns.addAll(findPairs(query1R, clusters1R, true, query2F, clusters2F, false, false));
+				if(debug) System.out.println("Non proper 1: "+pairedAlns.size());
 			}
-			//System.out.println("Non proper 1: "+pairedAlns.size());
+			
 			if(pairedAlns.isEmpty()) {
 				pairedAlns.addAll(findPairs(query1F, clusters1F, false, query2F, clusters2F, false, false));
-				pairedAlns.addAll(findPairs(query1R, clusters1R, true, query2R, clusters2R, true, false));	
+				pairedAlns.addAll(findPairs(query1R, clusters1R, true, query2R, clusters2R, true, false));
+				if(debug) System.out.println("Non proper 2: "+pairedAlns.size());
 			}
-			//System.out.println("Non proper 2: "+pairedAlns.size());
 			if(pairedAlns.isEmpty()) {
 				List<ReadAlignment> alns1 = alignAsSingle(query1F, clusters1F, query1R, clusters1R);
 				List<ReadAlignment> alns2 = alignAsSingle(query2F, clusters2F, query2R, clusters2R);
-				//System.out.println("Alignments 1: "+alns1);
-				//System.out.println("Alignments 2: "+alns2);
+				if(debug) System.out.println("Alignments 1: "+alns1);
+				if(debug) System.out.println("Alignments 2: "+alns2);
 				if(alns1.size()>0) numReadsAligned++;
 				if(alns2.size()>0) numReadsAligned++;
 				int n = Math.min(alns1.size(), maxAlnsPerRead);
@@ -228,7 +234,15 @@ public class PairedReadsAligner {
 				if(alns2.size()==1 && alns2.get(0).getAlignmentQuality()>=20) numUniqueAlignments++;
 			} else {
 				numReadsAligned = 2;
-				addPairedAlignments(alns, pairedAlns, clusters1F.size()+clusters1R.size(),clusters2F.size()+ clusters2R.size());
+				if(pairedAlns.size()==1) {
+					ReadAlignmentPair pair = pairedAlns.get(0);
+					ReadAlignment aln1 = pair.getAln1();
+					if(aln1.getNumMismatches()>4 && clusters1F.size()+clusters1R.size()>1) adjustQualityScore(aln1,alignAsSingle(query1F, clusters1F, query1R, clusters1R));
+					ReadAlignment aln2 = pair.getAln2();
+					if(aln2.getNumMismatches()>4 && clusters2F.size()+clusters2R.size()>1) adjustQualityScore(aln2,alignAsSingle(query2F, clusters2F, query2R, clusters2R));
+				}
+				
+				addPairedAlignments(alns,pairedAlns);
 				pair=true;
 				if(pairedAlns.size()==1) numUniqueAlignments=2;
 			}
@@ -255,6 +269,17 @@ public class PairedReadsAligner {
 		}
 		return alns;
 	}
+
+	private void adjustQualityScore(ReadAlignment aln, List<ReadAlignment> singleReadAlignments) {
+		if(singleReadAlignments.size()==0) return;
+		ReadAlignment alnS = singleReadAlignments.get(0);
+		byte qual = aln.getAlignmentQuality();
+		if(!aln.getSequenceName().equals(alnS.getSequenceName()) || aln.getFirst()!=alnS.getFirst()) qual = (byte) Math.min(qual, 10);
+		else qual = (byte) Math.min(qual, alnS.getAlignmentQuality());
+		aln.setAlignmentQuality(qual);
+	}
+
+
 
 	private List<ReadAlignmentPair> findPairs(CharSequence query1, List<UngappedSearchHitsCluster> clusters1, boolean r1, CharSequence query2, List<UngappedSearchHitsCluster> clusters2, boolean r2, boolean onlyProper ){
 		List<UngappedSearchHitClusterPair> pairedClusters = new ArrayList<>();
@@ -415,10 +440,11 @@ public class PairedReadsAligner {
 		return new ReadAlignmentPair(aln1,aln2);
 	}
 	
-	private void addPairedAlignments(List<ReadAlignment> alns, List<ReadAlignmentPair> pairAlns, int numAlnsUnpaired1, int numAlnsUnpaired2) {
+	private void addPairedAlignments(List<ReadAlignment> alns, List<ReadAlignmentPair> pairAlns) {
 		Collections.sort(pairAlns,(p1,p2)->p2.getQualitySum()-p1.getQualitySum());
-		int n = Math.min(pairAlns.size(),maxAlnsPerRead);
-		for (int i = 0; i < n; i++) {
+		int n = pairAlns.size();
+		int limit = Math.min(n,maxAlnsPerRead);
+		for (int i = 0; i < limit; i++) {
 			ReadAlignmentPair current = pairAlns.get(i);
 			ReadAlignment aln1 = current.getAln1();
 			ReadAlignment aln2 = current.getAln2();
@@ -426,13 +452,12 @@ public class PairedReadsAligner {
 				aln1.setSecondary(true);
 				aln2.setSecondary(true);
 			}
-			if (pairAlns.size()>1) {
+			if (n>1) {
 				aln1.setAlignmentQuality((byte) Math.round(0.2*aln1.getAlignmentQuality()/(double)n));
 				aln2.setAlignmentQuality((byte) Math.round(0.2*aln2.getAlignmentQuality()/(double)n));
-			} else if (!aln1.isProperPair() || !aln2.isProperPair() || (numAlnsUnpaired1>1 && numAlnsUnpaired2>1)) {
-				double div = Math.max(numAlnsUnpaired1+numAlnsUnpaired2-1,1);
-				aln1.setAlignmentQuality((byte) Math.round(0.5*aln1.getAlignmentQuality()/div));
-				aln2.setAlignmentQuality((byte) Math.round(0.5*aln2.getAlignmentQuality()/div));
+			} else if (!aln1.isProperPair() || !aln2.isProperPair()) {
+				aln1.setAlignmentQuality((byte) Math.round(0.5*aln1.getAlignmentQuality()));
+				aln2.setAlignmentQuality((byte) Math.round(0.5*aln2.getAlignmentQuality()));
 			}
 			alns.add(aln1);
 			alns.add(aln2);
@@ -447,17 +472,17 @@ public class PairedReadsAligner {
 	}
 	
 	private List<ReadAlignment> alignAsSingle(CharSequence queryF, List<UngappedSearchHitsCluster> clustersF, CharSequence queryR, List<UngappedSearchHitsCluster> clustersR ) {
-		List<ReadAlignment> answer = new ArrayList<ReadAlignment>();
-		answer.addAll(alignAsSingle(queryF, false, clustersF));
-		answer.addAll(alignAsSingle(queryR, true, clustersR));
-		Collections.sort(answer, (aln1,aln2) -> aln2.getAlignmentQuality() - aln1.getAlignmentQuality());
+		SingleReadsAligner singleReadsAligner = new SingleReadsAligner(genome, clustersFinder, aligner);
+		List<ReadAlignment> unfilteredAlns = new ArrayList<ReadAlignment>();
+		unfilteredAlns.addAll(alignAsSingle(queryF, false, clustersF, singleReadsAligner));
+		unfilteredAlns.addAll(alignAsSingle(queryR, true, clustersR, singleReadsAligner));
+		List<ReadAlignment> answer = singleReadsAligner.filterAlignments(unfilteredAlns);
+		//System.out.println("Alignments: "+answer);
 		return answer;
 	}
-	private List<ReadAlignment> alignAsSingle(CharSequence query, boolean negativeStrand, List<UngappedSearchHitsCluster> clusters) {
-		SingleReadsAligner singleReadsAligner = new SingleReadsAligner(genome, clustersFinder, aligner);
+	private List<ReadAlignment> alignAsSingle(CharSequence query, boolean negativeStrand, List<UngappedSearchHitsCluster> clusters, SingleReadsAligner singleReadsAligner) {
 		singleReadsAligner.setMaxAlnsPerRead(maxAlnsPerRead);
-		List<ReadAlignment> rawAlns = singleReadsAligner.buildAlignments(query, clusters, 1);
-		List<ReadAlignment> answer = singleReadsAligner.filterAlignments(rawAlns);
+		List<ReadAlignment> answer = singleReadsAligner.buildAlignments(query, clusters, 1);
 		for(ReadAlignment aln:answer) {
 			aln.setNegativeStrand(negativeStrand);
 			aln.setPaired(true);

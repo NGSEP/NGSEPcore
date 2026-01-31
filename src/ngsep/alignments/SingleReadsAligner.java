@@ -149,11 +149,11 @@ public class SingleReadsAligner {
 			if(countHits<limitCount) break;
 			QualifiedSequence refSeq = genome.getSequenceByIndex(sequenceIdx);
 			ReadAlignment aln = aligner.buildAlignment(query, refSeq.getCharacters(), cluster);
-			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits "+countHits+" weighted count: "+cluster.getWeightedCount()+" aln "+aln);
 			if(aln!=null) {
 				aln.setSequenceName(refSeq.getName());
 				answer.add(aln);
 			}
+			//System.out.println("Qlen: "+query.length()+" next cluster "+cluster.getSubjectIdx()+": "+cluster.getSubjectPredictedStart()+" "+cluster.getSubjectPredictedEnd()+" hits "+countHits+" weighted count: "+cluster.getWeightedCount()+" aln "+aln);
 		}
 		return answer;
 	}

@@ -124,7 +124,7 @@ public class ShortReadsUngappedSearchHitsClusterAligner  implements UngappedSear
 		quality=(byte) Math.max(quality, 20);
 		aln.setAlignmentQuality(quality);
 		aln.setNumMismatches((short)mismatches);
-		
+		//System.out.println("Final alignment: "+aln+" quality:" +aln.getAlignmentQuality()+" mismatches: "+mismatches);
 		return aln;
 	}
 	public List<Integer> encodeAlignment(int length, int[] mismatches) {
