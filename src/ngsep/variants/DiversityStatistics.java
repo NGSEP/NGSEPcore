@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import JSci.maths.statistics.ChiSqrDistribution;
+import ngsep.math.FisherExactTest;
 
 public class DiversityStatistics {
 	private static ChiSqrDistribution chiSquare = new ChiSqrDistribution(1);
@@ -41,6 +42,7 @@ public class DiversityStatistics {
 	
 	private double chiSquareValue = 0;
 	private double chiSquarePValue = 1;
+	private double fisherTestPvalue = 1;
 	
 	
 	public int getNumSamplesGenotyped() {
@@ -110,6 +112,12 @@ public class DiversityStatistics {
 	}
 	public void setChiSquarePValue(double chiSquarePValue) {
 		this.chiSquarePValue = chiSquarePValue;
+	}
+	public double getFisherTestPvalue() {
+		return fisherTestPvalue;
+	}
+	public void setFisherTestPvalue(double fisherTestPvalue) {
+		this.fisherTestPvalue = fisherTestPvalue;
 	}
 	public int getNumCalledAlleles() {
 		return numCalledAlleles;
@@ -212,6 +220,7 @@ public class DiversityStatistics {
 			chiValue += Math.pow(numHeterozygous-expCountHetero, 2)/expCountHetero;
 			answer.setChiSquareValue(chiValue);
 			answer.setChiSquarePValue(1-chiSquare.cumulative(chiValue));
+			answer.setFisherTestPvalue(FisherExactTest.calculateExactTestGenotypeCounts(numHomozygous[0], numHeterozygous, numHomozygous[1]));
 		}
 		return answer;
 	}

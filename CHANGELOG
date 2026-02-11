@@ -1,3 +1,8 @@
+v5.1.1 28-02-2026
+- ReadsAligner. The input format option -f can now receive the value 2 for
+  mapping of reads in BAM format.
+- Diversity statistics. Included Fisher exact test for departure from HWE.
+   
 v5.1.0 29-05-2025
 - FastqFileFilter: New option -s to provide a file with read ids to select.
 - GenomesAligner: New option -sy to skip the synteny analysis.

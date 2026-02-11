@@ -55,7 +55,8 @@ public class VCFDiversityCalculator {
 	
 	// Model attributes
 	private boolean assumeAlwaysDiploid = false;
-	private DecimalFormat fmt = new DecimalFormat("#0.0000",DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+	private static DecimalFormat fmt = new DecimalFormat("#0.0000",DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+	private static DecimalFormat fmtPvalues = new DecimalFormat("0.##E0",DecimalFormatSymbols.getInstance(Locale.ENGLISH));
 	
 	public Logger getLog() {
 		return log;
@@ -173,13 +174,14 @@ public class VCFDiversityCalculator {
 		out.println("#6. Reference allele frequency");
 		out.println("#7. Chi-square value of departure from HWE");
 		out.println("#8. Uncorrected p-value of the Chi-square test for departure from HWE");
+		out.println("#9. Uncorrected p-value of the Fisher exact test for departure from HWE");
 	}
 
 	private void printStats(GenomicVariant v,List<DiversityStatistics> groupsStats, PrintStream out) {
 		out.print(v.getSequenceName()+"\t"+v.getFirst()+"\t"+v.getLast()+"\t"+v.getReference());
 		for(DiversityStatistics stats:groupsStats) {
 			if(stats == null) {
-				out.print("\t0:0:0:0:0:0:0:0");
+				out.print("\t0:0:0:0:0:0:0:0:0");
 			} else {
 				out.print("\t"+stats.getNumSamplesGenotyped());
 				out.print(":"+fmt.format(stats.getExpectedHeterozygosity()));
@@ -188,7 +190,8 @@ public class VCFDiversityCalculator {
 				out.print(":"+fmt.format(stats.getMaf()));
 				out.print(":"+fmt.format(stats.getAlleleFrequencies()[0]));
 				out.print(":"+fmt.format(stats.getChiSquareValue()));
-				out.print(":"+fmt.format(stats.getChiSquarePValue()));
+				out.print(":"+fmtPvalues.format(stats.getChiSquarePValue()));
+				out.print(":"+fmtPvalues.format(stats.getFisherTestPvalue()));
 			}
 		}
 		out.println();

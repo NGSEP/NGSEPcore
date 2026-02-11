@@ -28,6 +28,8 @@ package ngsep.math;
  */
 public class LogMath {
 	public static final double MAXLOGDIFF=20;
+	public static final double LOG2 = Math.log10(2.0);
+	public static final double LOG4 = Math.log10(4.0);
 	/**
 	 * Null aware sum of probabilities, also scalable to small values.
 	 * The sum is calculated as p+q = log(p)+log(1+exp(log(q)-log(p)))
