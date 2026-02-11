@@ -57,6 +57,7 @@ public class KmersExtractor {
 	public static final int DEF_NUM_THREADS = 1;
 	public static final byte INPUT_FORMAT_FASTQ=0;
 	public static final byte INPUT_FORMAT_FASTA=1;
+	public static final byte INPUT_FORMAT_BAM=2;
 	
 	private static final int MAX_LENGTH_SINGLE_TASK = 100000;
 	

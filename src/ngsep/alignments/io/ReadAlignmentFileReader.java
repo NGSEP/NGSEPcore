@@ -45,6 +45,7 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.ReadAlignment.Platform;
 import ngsep.genome.ReferenceGenome;
@@ -78,6 +79,7 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	private int filterFlags = 0;
 	private int loadMode = LOAD_MODE_FULL;
 	private boolean validateHeader = true;
+	private boolean validateRecords = true;
 	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	
 	private static Set<String> PROCESSED_OPTIONAL_ATTRIBUTES;
@@ -94,6 +96,10 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	public ReadAlignmentFileReader (String filename) throws IOException {
 		init(null,new File(filename),null);
 	}
+	public ReadAlignmentFileReader (String filename, boolean validateRecords) throws IOException {
+		this.validateRecords = validateRecords;
+		init(null,new File(filename),null);
+	}
 	public ReadAlignmentFileReader (String filename, ReferenceGenome genome) throws IOException {
 		if(genome!=null) sequences = genome.getSequencesMetadata();
 		init(null,new File(filename),genome);
@@ -107,6 +113,16 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 		this.sequences = sequences;
 		this.validateHeader = validateHeader;
 		init(null,new File(filename),null);
+	}
+	public ReadAlignmentFileReader (InputStream in) throws IOException {
+		init(in,null,null);
+	}
+	public ReadAlignmentFileReader (InputStream in, boolean validateRecords) throws IOException {
+		this.validateRecords = validateRecords;
+		init(in,null,null);
+	}
+	public ReadAlignmentFileReader (InputStream in, ReferenceGenome genome) throws IOException {
+		init(in,null,genome);
 	}
 	//TODO: Make more constructors
 	public Logger getLog() {
@@ -191,6 +207,7 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 		//TODO: Use stream
 		SamReaderFactory factory = SamReaderFactory.makeDefault();
 		if(genome!=null) factory.referenceSequence(new File(genome.getFilename()));
+		if(!validateRecords) factory.validationStringency(ValidationStringency.SILENT);
 		SamReader reader = factory.open(file);
 		SAMFileHeader header = reader.getFileHeader();
 		if(header != null) loadHeader(header);

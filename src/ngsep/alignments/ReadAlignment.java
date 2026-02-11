@@ -22,6 +22,7 @@ package ngsep.alignments;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -734,6 +735,11 @@ public class ReadAlignment implements GenomicRegion {
 
 	public void setUnprocessedOptionalInfo(Map<String, Object> unprocessedOptionalInfo) {
 		this.unprocessedOptionalInfo = unprocessedOptionalInfo;
+	}
+	
+	public void addUnprocessedOptionalInfoItem(String key, Object value) {
+		if(unprocessedOptionalInfo==null) unprocessedOptionalInfo = new LinkedHashMap<String, Object>();
+		unprocessedOptionalInfo.put(key,value);
 	}
 
 	public int getCoverageSharedKmers() {

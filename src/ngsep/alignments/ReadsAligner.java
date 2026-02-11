@@ -26,9 +26,11 @@ import java.io.PrintStream;
 import java.text.DecimalFormat;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment.Platform;
+import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.alignments.io.ReadAlignmentFileWriter;
 import ngsep.genome.ReferenceGenome;
 import ngsep.genome.ReferenceGenomeFMIndex;
@@ -57,6 +59,7 @@ public class ReadsAligner {
 	public static final String DEF_SAMPLE_ID = "Sample";
 	public static final byte INPUT_FORMAT_FASTQ=KmersExtractor.INPUT_FORMAT_FASTQ;
 	public static final byte INPUT_FORMAT_FASTA=KmersExtractor.INPUT_FORMAT_FASTA;
+	public static final byte INPUT_FORMAT_BAM=KmersExtractor.INPUT_FORMAT_BAM;
 	public static final int DEF_MAX_ALNS_PER_READ=1;
 	public static final int DEF_KMER_LENGTH = 25;
 	public static final int DEF_WINDOW_LENGTH = 40;
@@ -371,14 +374,21 @@ public class ReadsAligner {
 					}
 				}
 			}
-		}  else if(inputFormat== INPUT_FORMAT_FASTA) {
+		} else if(inputFormat== INPUT_FORMAT_FASTA) {
 			try (FastaFileReader reader = new FastaFileReader(inputFile)) {
 				reader.setSequenceType(DNAMaskedSequence.class);
 				Iterator<QualifiedSequence> it = reader.iterator();
 				for(int i=1;it.hasNext() && i<sampleSize;i++) {
 					QualifiedSequence seq = it.next();
-					RawRead read = new RawRead(seq.getName(), seq.getCharacters(),null);
-					maxLength = Math.max(maxLength, read.getLength());
+					maxLength = Math.max(maxLength, seq.getLength());
+				}
+			}
+		} else if(inputFormat== INPUT_FORMAT_BAM) {
+			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(inputFile)) {
+				Iterator<ReadAlignment> it = reader.iterator();
+				for(int i=1;it.hasNext() && i<sampleSize;i++) {
+					ReadAlignment pseudoAln = it.next();
+					maxLength = Math.max(maxLength, pseudoAln.getReadLength());
 				}
 			}
 		}
@@ -402,6 +412,7 @@ public class ReadsAligner {
 		out.println("K-mer length: "+ kmerLength);
 		if (inputFormat == INPUT_FORMAT_FASTQ)  out.println("Fastq format");
 		if (inputFormat == INPUT_FORMAT_FASTA)  out.println("Fasta format");
+		if (inputFormat == INPUT_FORMAT_BAM)  out.println("BAM format");
 		if (knownSTRsFile!=null) out.println("Fie with known short tandem repeats "+knownSTRsFile);
 		out.println("Maximum alignments per read: "+ maxAlnsPerRead);
 		out.println("Window length to calculate minimizers: "+ windowLength);
@@ -442,8 +453,18 @@ public class ReadsAligner {
 					pool.queueTask( () -> processSingleRead(readNumber, read, writer));
 				}
 			}
+		} else if(inputFormat == INPUT_FORMAT_BAM) {
+			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(readsFile,false)) {
+				Iterator<ReadAlignment> it = reader.iterator();
+				for(int i=1;it.hasNext();i++) {
+					ReadAlignment pseudoAln = it.next();
+					final int readNumber = i;
+					pool.queueTask( () -> processSingleRead(readNumber, pseudoAln, writer));
+				}
+			}
 		}
 	}
+	
 	private void alignReads(InputStream in, ReadAlignmentFileWriter writer) throws IOException, InterruptedException {
 		if(inputFormat == INPUT_FORMAT_FASTQ) {
 			try (FastqFileReader reader = new FastqFileReader(in)) {
@@ -455,7 +476,7 @@ public class ReadsAligner {
 					pool.queueTask( () -> processSingleRead(readNumber, read, writer));
 				}
 			}
-		}  else if(inputFormat== INPUT_FORMAT_FASTA) {
+		} else if(inputFormat== INPUT_FORMAT_FASTA) {
 			try (FastaFileReader reader = new FastaFileReader(in)) {
 				reader.setSequenceType(DNAMaskedSequence.class);
 				Iterator<QualifiedSequence> it = reader.iterator();
@@ -464,6 +485,15 @@ public class ReadsAligner {
 					RawRead read = new RawRead(seq.getName(), seq.getCharacters(),null);
 					final int readNumber = i;
 					pool.queueTask( () -> processSingleRead(readNumber, read, writer));
+				}
+			}
+		} else if(inputFormat == INPUT_FORMAT_BAM) {
+			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(in,false)) {
+				Iterator<ReadAlignment> it = reader.iterator();
+				for(int i=1;it.hasNext();i++) {
+					ReadAlignment pseudoAln = it.next();
+					final int readNumber = i;
+					pool.queueTask( () -> processSingleRead(readNumber, pseudoAln, writer));
 				}
 			}
 		}
@@ -511,11 +541,36 @@ public class ReadsAligner {
 		}
 		checkProgress(readNumber);
 	}
+	private void processSingleRead(int readNumber, ReadAlignment pseudoAln, ReadAlignmentFileWriter writer) {
+		RawRead read = new RawRead(pseudoAln.getReadName(), pseudoAln.getReadCharacters() , pseudoAln.getQualityScores());
+		List<ReadAlignment> alns = alignRead(read);
+		int numAlns = alns.size();
+		if (alns.size()==0) {
+			alns.add(ReadAlignment.createMockAlignmentUnmappedRead(read, false, false));
+		}
+		//Add bam optional info
+		Map<String,Object> optionalInfo = pseudoAln.getUnprocessedOptionalInfo();
+		if(optionalInfo!=null) {
+			for(ReadAlignment aln:alns) {
+				for(Map.Entry<String, Object> entry:optionalInfo.entrySet()) {
+					aln.addUnprocessedOptionalInfoItem(entry.getKey(), entry.getValue());
+				}
+			}
+		}
+		synchronized (writer) {
+			for(ReadAlignment aln:alns) writer.write(aln);
+			totalReads++;
+			if(numAlns>0) readsAligned++;
+			if(numAlns==1 && alns.get(0).getAlignmentQuality()>20) uniqueAlignments++;
+		}
+	}
 	public List<ReadAlignment> alignRead (QualifiedSequence read) {
 		initializeFactory();
 		SingleReadsAligner aligner = new SingleReadsAligner(genome, factory.requestClustersFinder(), factory.requestAligner());
 		aligner.setMaxAlnsPerRead(maxAlnsPerRead);
-		return aligner.alignRead(read);
+		List<ReadAlignment> alns = aligner.alignRead(read);
+		
+		return alns;
 	}
 	
 	private void processPairedEndRead (int readNumber, RawRead read1, RawRead read2, ReadAlignmentFileWriter writer) {
