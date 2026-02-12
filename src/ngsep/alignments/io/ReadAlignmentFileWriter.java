@@ -27,6 +27,7 @@ import java.util.Map;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -132,5 +133,11 @@ public class ReadAlignmentFileWriter implements Closeable {
 		sampleRecord.setSample(sampleId);
 		sampleRecord.setPlatform(platform.toString());
 		samFileHeader.addReadGroup(sampleRecord);
+	}
+	public void copyHeaderInfo(ReadAlignmentFileReader reader) {
+		List<SAMProgramRecord> programRecords = reader.getProgramRecords();
+		if(programRecords!=null && programRecords.size()>0) {
+			samFileHeader.setProgramRecords(programRecords);
+		}
 	}
 }

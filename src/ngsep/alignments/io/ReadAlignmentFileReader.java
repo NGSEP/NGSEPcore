@@ -36,6 +36,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecord.SAMTagAndValue;
@@ -74,6 +75,8 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	private QualifiedSequenceList readGroupIds = new QualifiedSequenceList();
 	private Map<String,String> sampleIdsByReadGroup = new HashMap<>();
 	private Map<String,ReadAlignment.Platform> platformsByReadGroup = new HashMap<>();
+	
+	private List<SAMProgramRecord> programRecords;
 	
 	private int requiredFlags = 0;
 	private int filterFlags = 0;
@@ -170,6 +173,11 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	public Map<String, String> getSampleIdsByReadGroup() {
 		return Collections.unmodifiableMap(sampleIdsByReadGroup);
 	}
+	
+	
+	public List<SAMProgramRecord> getProgramRecords() {
+		return programRecords;
+	}
 	public int getLoadMode() {
 		return loadMode;
 	}
@@ -227,6 +235,7 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 				throw new IOException("The read group ID: "+id+" is associated to two different samples: "+sampleId+" and "+sampleIdsByReadGroup.get(id)+". Read group ids should be unique across samples");
 			}
 		}
+		programRecords = header.getProgramRecords();
 		if(!validateHeader) return;
 		SAMSequenceDictionary dict = header.getSequenceDictionary();
 		if(dict == null) return;

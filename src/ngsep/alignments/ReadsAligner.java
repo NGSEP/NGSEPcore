@@ -288,7 +288,7 @@ public class ReadsAligner {
 		PrintStream out = System.out;
 		if(outputFile!=null) out = new PrintStream(outputFile); 
 		try (ReadAlignmentFileWriter writer = new ReadAlignmentFileWriter(sequences, out)){
-			writer.setSampleInfo(sampleId, platform);
+			if(inputFormat!=KmersExtractor.INPUT_FORMAT_BAM) writer.setSampleInfo(sampleId, platform);
 			if(inputFile!=null && inputFile2!=null) {
 				log.info("Aligning paired end reads from files: "+inputFile + " and "+inputFile2);
 				paired = true;
@@ -384,7 +384,7 @@ public class ReadsAligner {
 				}
 			}
 		} else if(inputFormat== INPUT_FORMAT_BAM) {
-			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(inputFile)) {
+			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(inputFile,false)) {
 				Iterator<ReadAlignment> it = reader.iterator();
 				for(int i=1;it.hasNext() && i<sampleSize;i++) {
 					ReadAlignment pseudoAln = it.next();
@@ -455,6 +455,9 @@ public class ReadsAligner {
 			}
 		} else if(inputFormat == INPUT_FORMAT_BAM) {
 			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(readsFile,false)) {
+				if(sampleId==DEF_SAMPLE_ID) updateSampleId(reader);
+				writer.setSampleInfo(sampleId, platform);
+				writer.copyHeaderInfo(reader);
 				Iterator<ReadAlignment> it = reader.iterator();
 				for(int i=1;it.hasNext();i++) {
 					ReadAlignment pseudoAln = it.next();
@@ -489,6 +492,9 @@ public class ReadsAligner {
 			}
 		} else if(inputFormat == INPUT_FORMAT_BAM) {
 			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(in,false)) {
+				if(sampleId==DEF_SAMPLE_ID) updateSampleId(reader);
+				writer.setSampleInfo(sampleId, platform);
+				writer.copyHeaderInfo(reader);
 				Iterator<ReadAlignment> it = reader.iterator();
 				for(int i=1;it.hasNext();i++) {
 					ReadAlignment pseudoAln = it.next();
@@ -500,6 +506,16 @@ public class ReadsAligner {
 	}
 	
 
+	private void updateSampleId(ReadAlignmentFileReader reader) {
+		List<String> rgs = reader.getReadGroups();
+		if(rgs.size()!=1) return;
+		String rg = rgs.get(0);
+		String sampleIdFile = reader.getSampleIdsByReadGroup().get(rg);
+		if(sampleIdFile!=null) {
+			this.sampleId = sampleIdFile;
+			log.info("Using sample id found in BAM file: "+this.sampleId);
+		}
+	}
 	/**
 	 * Aligns readsFile with the fMIndexFile for pairend
 	 * @param fMIndexFile Binary file with the serialization of an FMIndex
