@@ -315,8 +315,14 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 		return answer;
 	}
 	private void loadOptionalAttributes(SAMRecord alnRecord, ReadAlignment aln) {
-		Short nm = alnRecord.getShortAttribute(SAMTag.NM.toString());
-		if(nm!=null)aln.setNumMismatches(nm);
+		Integer nm = alnRecord.getIntegerAttribute(SAMTag.NM.toString());
+		if(nm!=null) {
+			if(nm>Short.MAX_VALUE) {
+				log.warning("Value of tag NM exceeds the maximum short. Value:  "+nm+" read id: "+alnRecord.getReadName()+" read length: "+alnRecord.getReadLength());
+				nm = 0+Short.MAX_VALUE;
+			}
+			aln.setNumMismatches((short)nm.intValue());
+		}
 		Integer block = alnRecord.getIntegerAttribute(ATTRIBUTE_HAPLOTYPE_BLOCK);
 		if(block!=null) aln.setHaplotypeBlock(LOAD_MODE_ALIGNMENT);
 		Byte phase = alnRecord.getByteAttribute(ATTRIBUTE_PHASE_ASSIGNMENT);
