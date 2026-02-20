@@ -114,6 +114,7 @@ public class FragmentsCutBuilder {
 
 	public void calculateMaxCut() {
 		//randomizeCut();
+		int iterDebug = -1;
 		boolean [] bestCut = new boolean [cut.length];
 		double maxScore = 0;
 		//double iters = allEdges.size()+1;
@@ -128,15 +129,15 @@ public class FragmentsCutBuilder {
 				initCutPath(e);
 				boolean improvement = true;
 				while(improvement) {
-					//if(iters == 1384 && i%10==0) log.info("Iteration "+i+". Running heuristic 1");
+					if(iters == iterDebug && i%10==0) log.info("Iteration "+i+". Running heuristic 1");
 					heuristic1();
-					//if(iters == 1384 && i%10==0) log.info("Iteration "+i+". Running heuristic 2");
+					if(iters == iterDebug && i%10==0) log.info("Iteration "+i+". Running heuristic 2");
 					improvement = heuristic2();
 					//if(iters == 1384 && i%10==0) log.info("Iteration "+i+". Improvement heuristic 2: "+improvement);
 				}
 
 				double score = calculateScore (cut);
-				//if(iters == 1384 && i%10==0) log.info("Iteration "+i+" cut score: "+score+" max score: "+maxScore);
+				if(iters == iterDebug && i%10==0) log.info("Iteration "+i+" cut score: "+score+" max score: "+maxScore);
 				if(maxScore < score) {
 					maxScore = score;
 					copy(bestCut,cut);
