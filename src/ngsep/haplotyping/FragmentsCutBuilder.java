@@ -22,7 +22,9 @@ package ngsep.haplotyping;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Logger;
 
 public class FragmentsCutBuilder {
@@ -73,7 +75,7 @@ public class FragmentsCutBuilder {
 				}
 			}
 		}
-		Collections.sort(allEdges, (e1,e2)->(int)e2.weight-(int)e1.weight);
+		Collections.sort(allEdges, (e1,e2)->(int)e2.getWeight()-(int)e1.getWeight());
 	}
 	public double [] calcAgreementScoreNodes() {
 		double [] answer = new double [graph.size()];
@@ -122,18 +124,19 @@ public class FragmentsCutBuilder {
 			Edge e=allEdges.get(i);
 			if(e.getWeight()>0) {
 				//System.out.println("Starting with edge: "+e.getPos1() +" - "+e.getPos2());
-				initCut(e);
+				//initCut(e);
+				initCutPath(e);
 				boolean improvement = true;
 				while(improvement) {
-					//if(i%10==0) log.info("Iteration "+i+". Running heuristic 1");
+					//if(iters == 1384 && i%10==0) log.info("Iteration "+i+". Running heuristic 1");
 					heuristic1();
-					//if(i%10==0) log.info("Iteration "+i+". Running heuristic 2");
+					//if(iters == 1384 && i%10==0) log.info("Iteration "+i+". Running heuristic 2");
 					improvement = heuristic2();
-					//if(i%10==0) log.info("Iteration "+i+". Improvement heuristic 2: "+improvement);
+					//if(iters == 1384 && i%10==0) log.info("Iteration "+i+". Improvement heuristic 2: "+improvement);
 				}
 
 				double score = calculateScore (cut);
-				//if(i%10==0) log.info("Iteration "+i+" cut score: "+score+" max score: "+maxScore);
+				//if(iters == 1384 && i%10==0) log.info("Iteration "+i+" cut score: "+score+" max score: "+maxScore);
 				if(maxScore < score) {
 					maxScore = score;
 					copy(bestCut,cut);
@@ -199,6 +202,69 @@ public class FragmentsCutBuilder {
 			assigned[vMax.getPos()] = true;
 			cut[vMax.getPos()] = group;
 			nAssigned++;
+		}
+	}
+	private void initCutPath(Edge e) {
+		Set<Integer> remaining = new HashSet<Integer>();
+		for(int i=0;i<cut.length;i++) {
+			if(i!=e.getPos1() && i!=e.getPos2()) {
+				remaining.add(i);
+			}
+		}
+		cut[e.getPos1()] = false;
+		cut[e.getPos2()] = true;
+		Vertex nextLeft = graph.get(e.getPos2());
+		Vertex nextRight = graph.get(e.getPos2());
+		while(remaining.size()>0) {
+			int remN = remaining.size();
+			Edge maxW = null;
+			for(Edge en:nextLeft.getEdges()) {
+				int connId = en.getConnectiongVertex(nextLeft.getPos());
+				if(!remaining.contains(connId)) continue;
+				if(en.getWeight()<=0) continue;
+				if(maxW==null || en.getWeight()>maxW.getWeight()) maxW = en;
+			}
+			if(maxW !=null) {
+				int connId = maxW.getConnectiongVertex(nextLeft.getPos());
+				remaining.remove(connId);
+				cut[connId] = !cut[nextLeft.getPos()];
+				nextLeft = graph.get(connId);
+			}
+			maxW = null;
+			for(Edge en:nextRight.getEdges()) {
+				int connId = en.getConnectiongVertex(nextRight.getPos());
+				if(!remaining.contains(connId)) continue;
+				if(en.getWeight()<=0) continue;
+				if(maxW==null || en.getWeight()>maxW.getWeight()) maxW = en;
+			}
+			if(maxW !=null) {
+				int connId = maxW.getConnectiongVertex(nextRight.getPos());
+				remaining.remove(connId);
+				cut[connId] = !cut[nextRight.getPos()];
+				nextRight = graph.get(connId);
+			}
+			if(remaining.size()<remN) continue;
+			//Pick new edge to continue
+			Set<Integer> toRemove = new HashSet<Integer>();
+			for(int i:remaining) {
+				Vertex v = graph.get(i);
+				for(Edge en:v.getEdges()) {
+					if(en.getWeight()<0) continue;
+					if(remaining.contains(en.getConnectiongVertex(i))) {
+						cut[en.getPos1()] = false;
+						cut[en.getPos2()] = true;
+						toRemove.add(en.getPos1());
+						toRemove.add(en.getPos2());
+						nextLeft = graph.get(en.getPos1());
+						nextRight = graph.get(en.getPos2());
+						break;
+					}
+				}
+				if(toRemove.size()>0) break;
+				cut[i] = false;
+				toRemove.add(i);
+			}
+			remaining.removeAll(toRemove);
 		}
 	}
 	private void initCutRandom(Edge e) 
@@ -458,8 +524,9 @@ public class FragmentsCutBuilder {
 				}
 			}
 		
-	}
+		}
 
+	}
 }
 class Vertex 
 {
@@ -537,6 +604,9 @@ class Edge {
 	public int getPos2() {
 		return pos2;
 	}
-
-}
+	public int getConnectiongVertex(int pos) {
+		if(pos == pos1) return pos2;
+		if(pos == pos2) return pos1;
+		throw new RuntimeException("Invalid vertex pos: "+pos+ " for edge: "+pos1+" "+pos2);
+	}
 }
