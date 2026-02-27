@@ -115,7 +115,8 @@ public class ReadAlignmentFileWriter implements Closeable {
 			for(Map.Entry<String, Object> entry:unproccesedInfo.entrySet()) {
 				Object value = entry.getValue();
 				if(value instanceof byte []) {
-					samRecord.setUnsignedArrayAttribute(entry.getKey(), value);
+					byte [] valueB = (byte[])value;
+					if(valueB!=null && valueB.length>0) samRecord.setUnsignedArrayAttribute(entry.getKey(), value);
 				} else {
 					samRecord.setAttribute(entry.getKey(), entry.getValue());
 				}
