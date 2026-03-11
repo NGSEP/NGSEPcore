@@ -1237,6 +1237,15 @@ Infer the family of large TE annotations using HMM alignments. WARN: It causes a
 <option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
 Number of threads.
 </option>
+<option id="kn" type="INT" attribute="kmerLengthDenovo" defaultConstant="DEF_DENOVO_KMER_LENGTH">
+De Novo Analysis Kmer length.
+</option>
+<option id="k" type="INT" attribute="kmerLengthSimilarity" defaultConstant="DEF_SIMILARITY_KMER_LENGTH">
+Similarity Analysis Kmer length.
+</option>
+<option id="w" type="INT" attribute="windowLengthSimilarity" defaultConstant="DEF_SIMILARITY_WINDOW_LENGTH">
+Similarity Analysis Window length.
+</option>
 </command>
 
 <command id="TransposonStats" class="ngsep.transposons.TransposableElementStatistics" groupId="Genomes">
@@ -1843,7 +1852,7 @@ Input file in VCF format. It can be gzip compressed.
 File with population assignments for the samples.
 A two column text file with the sample ids in the first column and the ids of the populations in the second column.
 </option>
-<option id="f" type="FILE" attribute="vcfTestFile">
+<option id="f" type="FILE" attribute="inputFile">
 VCF file with additional samples to infer haplotype composition.
 </option>
 <option id="o" type="FILE" attribute="outputPrefix">
