@@ -119,21 +119,27 @@ public class FragmentsCutBuilder {
 		double maxScore = 0;
 		//double iters = allEdges.size()+1;
 		int iters = (int) (Math.sqrt(allEdges.size())+1);
-		log.info("Running "+iters+" iterations");
+		int m = allEdges.size();
+		log.info("Running graph with "+cut.length+" vertices and "+ allEdges.size()+ " edges. Max iterations: "+iters);
 		boolean scoreChange = false;
 		for(int i=0;i<allEdges.size() && i<iters;i++) {
 			Edge e=allEdges.get(i);
 			if(e.getWeight()>0) {
-				//System.out.println("Starting with edge: "+e.getPos1() +" - "+e.getPos2());
+				if(iters == iterDebug) System.out.println("Starting with edge: "+e.getPos1() +" - "+e.getPos2());
 				//initCut(e);
 				initCutPath(e);
 				boolean improvement = true;
 				while(improvement) {
-					if(iters == iterDebug && i%10==0) log.info("Iteration "+i+". Running heuristic 1");
-					heuristic1();
-					if(iters == iterDebug && i%10==0) log.info("Iteration "+i+". Running heuristic 2");
-					improvement = heuristic2();
-					//if(iters == 1384 && i%10==0) log.info("Iteration "+i+". Improvement heuristic 2: "+improvement);
+					if(iters == iterDebug) log.info("Iteration "+i+". Running heuristic 1");
+					//heuristic1();
+					improvement = heuristic1NoMax();
+					if(m<1000000) {
+						if(iters == iterDebug) log.info("Iteration "+i+". Running heuristic 2");
+						//improvement = heuristic2();
+						improvement = heuristic2NoMax();
+						if(iters == iterDebug) log.info("Iteration "+i+". Improvement heuristic 2: "+improvement);
+					}
+					
 				}
 
 				double score = calculateScore (cut);
@@ -141,13 +147,13 @@ public class FragmentsCutBuilder {
 				if(maxScore < score) {
 					maxScore = score;
 					copy(bestCut,cut);
-					scoreChange = true;
+					scoreChange = (i>0);
 				}
 			}
-			if((i+1)%10==0) {
+			if((i+1)%5==0) {
 				log.info("Completed: "+(i+1)+" iterations. Max score: "+maxScore);
 				if(!scoreChange) {
-					log.info("No score change in the last 10 iterations. Finishing block");
+					log.info("No score change in the last 5 iterations. Finishing block");
 					break;
 				} else scoreChange = false;
 			}
@@ -337,6 +343,22 @@ public class FragmentsCutBuilder {
 		} while (maxVertex !=null);
 		return totalImp;
 	}
+	private boolean heuristic1NoMax() {
+		boolean totalImp = false;
+		boolean roundImp = true;
+		while(roundImp) {
+			roundImp = false;
+			for(Vertex v:graph) {
+				double diff = getFlipDifference(v, cut);
+				if(diff > 0) {
+					flipVertex(v.getPos());
+					totalImp=true;
+					roundImp = true;
+				}
+			}
+		}
+		return totalImp;
+	}
 	private boolean heuristic2() {
 		boolean totalImp = false;
 		Edge maxEdge;
@@ -371,6 +393,37 @@ public class FragmentsCutBuilder {
 				totalImp = true;
 			}
 		} while (maxEdge !=null);
+		return totalImp;
+	}
+	private boolean heuristic2NoMax() {
+		boolean totalImp = false;
+		boolean roundImp = true;
+		while(roundImp) {
+			roundImp = false;
+			for(Edge e:allEdges) {
+				int pos1 = e.getPos1();
+				int pos2 = e.getPos2();
+
+				Vertex v1 = graph.get(pos1);
+				Vertex v2 = graph.get(pos2);
+				double diff1 = getFlipDifference(v1, cut);
+				double diff2 = getFlipDifference(v2, cut);
+				boolean same = cut[pos1]==cut[pos2];
+				if(same) {
+					diff1-=e.getWeight();
+					diff2-=e.getWeight();
+				} else {
+					diff1+=e.getWeight();
+					diff2+=e.getWeight();
+				}
+				if(diff1 + diff2 > 0) {
+					flipVertex(e.getPos1());
+					flipVertex(e.getPos2());
+					roundImp = true;
+					totalImp = true;
+				}
+			}	
+		}
 		return totalImp;
 	}
 	private void flipVertex(int pos) {
