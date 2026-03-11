@@ -50,6 +50,7 @@ import ngsep.transposons.io.TransposableElementLibraryHandler;
  * @author Daniela Lozano
  * @author Laura Gonzalez
  * @author Jorge Duitama
+ * @author Daniel Mahecha
  *
  */
 public class TransposableElementsFinder {
@@ -62,7 +63,9 @@ public class TransposableElementsFinder {
 	public static final int DEF_ROUNDS = 1;
 	public static final int DEF_LIMIT_GENOME_LENGTH = 0;
 	public static final int DEF_NUM_THREADS = 1;
-	
+	public static final int DEF_DENOVO_KMER_LENGTH = 11;  //OPTIONAL DANIEL MAHECHA
+	public static final int DEF_SIMILARITY_KMER_LENGTH = 15; //OPTIONAL DANIEL MAHECHA
+	public static final int DEF_SIMILARITY_WINDOW_LENGTH = 20; //OPTIONAL DANIEL MAHECHA
 	
 	// Parameters 
 	private String inputFile = null;
@@ -75,6 +78,10 @@ public class TransposableElementsFinder {
 	private boolean runDeNovo = false;
 	private int maxAlnsPerTransposon = 10000;
 	private int numThreads = DEF_NUM_THREADS;
+	private int kmerLengthDenovo = DEF_DENOVO_KMER_LENGTH; // OPTIONAL DANIEL MAHECHA
+	private int kmerLengthSimilarity = DEF_SIMILARITY_KMER_LENGTH; // OPTIONAL DANIEL MAHECHA
+	private int windowLengthSimilarity = DEF_SIMILARITY_WINDOW_LENGTH; // OPTIONAL DANIEL MAHECHA
+
 	
 	//Other attributes
 	private double minWeightedCount = 10;
@@ -177,6 +184,39 @@ public class TransposableElementsFinder {
 		this.setNumThreads(Integer.parseInt(value));
 	}
 	
+	//OPTIONAL DANIEL MAHECHA -k
+	public int getKmerLengthDenovo() {
+		return kmerLengthDenovo;
+	}
+	public void setKmerLengthDenovo(int kmerLength) {
+		this.kmerLengthDenovo = kmerLength;
+	}
+	public void setKmerLengthDenovo(String value) {
+		this.setKmerLengthDenovo(Integer.parseInt(value));
+	}
+	
+	//OPTIONAL DANIEL MAHECHA -s
+	public int getKmerLengthSimilarity() {
+		return kmerLengthSimilarity;
+	}
+	public void setKmerLengthSimilarity(int kmerLength) {
+		this.kmerLengthSimilarity = kmerLength;
+	}
+	public void setKmerLengthSimilarity(String value) {
+		this.setKmerLengthSimilarity(Integer.parseInt(value));
+	}
+	
+	//OPTIONAL DANIEL MAHECHA -w
+	public int getWindowLengthSimilarity() {
+		return windowLengthSimilarity;
+	}
+	public void setWindowLengthSimilarity(int kmerLength) {
+		this.windowLengthSimilarity = kmerLength;
+	}
+	public void setWindowLengthSimilarity(String value) {
+		this.setWindowLengthSimilarity(Integer.parseInt(value));
+	}
+	
 	public static void main(String[] args) throws Exception {
 		TransposableElementsFinder instance = new TransposableElementsFinder();
 		CommandsDescriptor.getInstance().loadOptions(instance, args);
@@ -204,6 +244,7 @@ public class TransposableElementsFinder {
 		out.println("Minimum TE length: "+minTELength);
 		out.println("Number of search rounds: "+rounds);
 		out.println("Number of threads: "+numThreads);
+		out.println("Kmer length: "+kmerLengthDenovo);
 		log.info(os.toString());
 	}
 	/**
@@ -222,6 +263,7 @@ public class TransposableElementsFinder {
 			deNovoFinder.setLog(log);
 			deNovoFinder.setProgressNotifier(progressNotifier);
 			deNovoFinder.setNumThreads(numThreads);
+			deNovoFinder.setKmerLength(kmerLengthDenovo);
 			deNovoAnn = deNovoFinder.findTransposons(genome);
 			List<TransposableElement> ltrs = extractTEs(genome, deNovoAnn);
 			knownElements.addAll(ltrs);
@@ -260,7 +302,7 @@ public class TransposableElementsFinder {
 			return answer;
 		}
 		MinimizersUngappedSearchHitsClustersFinder minimizerTable = new MinimizersUngappedSearchHitsClustersFinder();
-		minimizerTable.loadGenome(genome, 15, 20, numThreads);
+		minimizerTable.loadGenome(genome, kmerLengthSimilarity, windowLengthSimilarity, numThreads); //15 is kmer length; 20 is window length
 		minimizerTable.setMinProportionReadLength(0);
 		GenomicRegionSortedCollection<TransposableElementAnnotation> validatedAnnotations = new GenomicRegionSortedCollection<TransposableElementAnnotation>();
 		validatedAnnotations.addAll(knownAnnotations);
