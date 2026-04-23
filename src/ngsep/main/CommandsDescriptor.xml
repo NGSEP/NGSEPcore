@@ -322,6 +322,23 @@ Number of threads
 </option>
 </command>
 
+<command id="AssemblyStats" class="ngsep.assembly.AssemblyStatisticsCalculator" groupId="Reads">
+<intro>
+Calculates basic statistics for genome assemblies
+</intro>
+<title>Evaluating genome assemblies</title>
+<description>
+Calculates basic statistics for genome assemblies such as number fo contigs, total length
+maximum length and N-statistics.
+</description>
+<option id="i" type="FILE" attribute="inputFile">
+Input file. It can be gzip compressed.
+</option>
+<option id="o" type="FILE" attribute="outputFile">
+Output file with statistics
+</option>
+</command>
+
 <command id="AssemblyReferenceSorter" class="ngsep.assembly.AssemblyReferenceSorter" groupId="Reads">
 <intro>
 Sorts contigs of a de-novo assembly by mapping to a reference assembly (Beta)

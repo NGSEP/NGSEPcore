@@ -132,7 +132,7 @@ public class LayoutBuilderKruskalPath implements LayoutBuilder {
 		log.info("Final number of paths: "+graph.getPaths().size());
 		System.out.println("Estimated N statistics");
 		long [] stats = graph.estimateNStatisticsFromPaths();
-		if(stats!=null) NStatisticsCalculator.printNStatistics(stats, System.out);
+		if(stats!=null) AssemblyStatisticsCalculator.printNStatistics(stats, System.out);
 	}
  
 	

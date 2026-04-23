@@ -554,7 +554,7 @@ public class AssemblyGraph {
 			}
 			lengths.add(total);
 		}
-		return NStatisticsCalculator.calculateNStatistics (lengths); 
+		return AssemblyStatisticsCalculator.calculateNStatistics (lengths); 
 	}
 
 	public void removeVerticesChimericReads () {

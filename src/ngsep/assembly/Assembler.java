@@ -537,9 +537,9 @@ public class Assembler {
 		log.info("Layout and initial consensus complete. Time process (s): "+diff1+" total time (s): "+diff2+" Memory: "+usedMemory);
 		List<Integer> lengths = new ArrayList<Integer>();
 		for(QualifiedSequence seq:assembledSequences) lengths.add(seq.getLength());
-		long [] nStats = NStatisticsCalculator.calculateNStatistics(lengths);
+		long [] nStats = AssemblyStatisticsCalculator.calculateNStatistics(lengths);
 		System.out.println("Initial consensus N statistics");
-		NStatisticsCalculator.printNStatistics(nStats, System.out);
+		AssemblyStatisticsCalculator.printNStatistics(nStats, System.out);
 		if(progressNotifier!=null && !progressNotifier.keepRunning(95)) return;
 		//Final merginig
 		log.info("Built initial consensus. Merging contig ends");
@@ -557,9 +557,9 @@ public class Assembler {
 		
 		lengths.clear();
 		for(QualifiedSequence seq:assembledSequences) lengths.add(seq.getLength());
-		nStats = NStatisticsCalculator.calculateNStatistics(lengths);
+		nStats = AssemblyStatisticsCalculator.calculateNStatistics(lengths);
 		System.out.println("Final assembly N statistics");
-		NStatisticsCalculator.printNStatistics(nStats, System.out);
+		AssemblyStatisticsCalculator.printNStatistics(nStats, System.out);
 		
 		
 		usedMemory = runtime.totalMemory()-runtime.freeMemory();

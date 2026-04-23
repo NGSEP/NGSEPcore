@@ -36,6 +36,14 @@ public class FisherExactTest {
 	}
 	
 	public static void main(String[] args) throws Exception {
+		if(args.length==4) {
+			int a = Integer.parseInt(args[0]);
+			int b = Integer.parseInt(args[1]);
+			int c = Integer.parseInt(args[2]);
+			int d = Integer.parseInt(args[3]);
+			System.out.println("Fisher P-value: "+calculatePValue(a, b, c, d));
+			return;
+		}
 		Random r = new Random();
 		//Test for 2x2 tables
 		int limit=100000;
