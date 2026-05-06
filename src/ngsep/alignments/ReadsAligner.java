@@ -568,8 +568,12 @@ public class ReadsAligner {
 		Map<String,Object> optionalInfo = pseudoAln.getUnprocessedOptionalInfo();
 		if(optionalInfo!=null) {
 			for(ReadAlignment aln:alns) {
-				for(Map.Entry<String, Object> entry:optionalInfo.entrySet()) {
-					aln.addUnprocessedOptionalInfoItem(entry.getKey(), entry.getValue());
+				//Supplementary alignments having hard clips can create inconsistencies withthe optional data
+				if(!aln.isSupplementary()) {
+					
+					for(Map.Entry<String, Object> entry:optionalInfo.entrySet()) {
+						aln.addUnprocessedOptionalInfoItem(entry.getKey(), entry.getValue());
+					}
 				}
 			}
 		}
