@@ -1,5 +1,5 @@
 NGSEP - Next Generation Sequencing Experience Platform
-Version 5.1.1 (01-03-2026)
+Version 5.1.1 (28-05-2026)
 
 ===========================================================================
 

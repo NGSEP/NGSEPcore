@@ -1,4 +1,4 @@
-v5.1.1 28-02-2026
+v5.1.1 28-05-2026
 - ReadsAligner. The input format option -f can now receive the value 2 for
   mapping of reads in BAM format.
 - Diversity statistics. Included Fisher exact test for departure from HWE.
