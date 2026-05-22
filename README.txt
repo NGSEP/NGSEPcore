@@ -300,6 +300,22 @@ OPTIONS:
 			  Default: 0
 	-t INT		: Number of threads. Default: 1
 
+----------------------------
+Evaluating genome assemblies
+----------------------------
+
+Calculates basic statistics for genome assemblies. The current output includes
+the number fo contigs, total length maximum length and N-statistics.
+
+USAGE:
+
+java -jar NGSEPcore.jar AssemblyStats <OPTIONS>
+
+OPTIONS:
+
+	-i FILE	: Input fasta file. It can be gzip compressed.
+        -o FILE : Output file with statistics
+
 -------------------------------------------
 Sorting contigs of genome assemblies (beta)
 -------------------------------------------
@@ -318,8 +334,8 @@ java -jar NGSEPcore.jar AssemblyReferenceSorter <OPTIONS>
 
 OPTIONS:
 
-	-i FILE	: Input genome in FASTA format. It can be gzip compressed.
-	-o FILE	: Output file
+	-i FILE		: Input genome in FASTA format. It can be gzip compressed.
+	-o FILE		: Output file
 	-r GENOME	: Reference genome to map contigs in FASTA format.
 			  Required parameter. It can be gzip compressed.
 	-k INT		: K-mer length Default: 25
@@ -400,9 +416,9 @@ Aligning reads to reference genomes
 -----------------------------------
 
 Calculates a list of genomic regions for sites where the reads can be found in
-a reference genome. It receives up to two files with raw reads in fastq format
-and the reference genome. To map short reads to long genomes, a precalculated
-FM index can also be provided with the option -d. See command GenomeIndexer for
+a reference genome. It receives up to two files with raw reads and the
+reference genome. To map short reads to long genomes, a precalculated FM index
+can also be provided with the option -d. See command GenomeIndexer for
 construction of the FM index. It provides as output a file with alignments to
 the reference genome in BAM format.
 
@@ -601,6 +617,7 @@ OPTIONS:
 	-embeddedSNVs           : Flag to call SNVs within STRs. By default,
 				  STRs are treated as a single locus and hence
 				  no SNV will be called within an STR.
+	-t INT			: Number of threads Default: 1
 
 Alignments should be provided in SAM, BAM or CRAM format
 (see http://samtools.github.io/hts-specs for details).
@@ -818,6 +835,8 @@ OPTIONS:
 				  structural variation will be called
 	-runLongReadSVs	: Runs the DBScan algorithm to identify structural
 				  variants from alignments of long reads
+	-t INT			: Number of threads Default: 1
+
 
 Alignments should be provided in SAM, BAM or CRAM format
 (see http://samtools.github.io/hts-specs for details).
@@ -943,8 +962,10 @@ OPTIONS:
 	-i FILE		: Input VCF file with variants to phase.
 	-b FILE		: Input file with read alignments.
 	-o FILE		: Output VCF file with phased variants.
+	-ob FILE	: Output BAM file to save the alignments with phase
+			  information.
 	-a STRING	: Algorithm for single individual haplotyping. It can
-			  be Refhap or DGS. Default: DGS
+			  be Refhap or DGS. Default: Refhap
 	-minMQ INT	: Minimum mapping quality to call an alignment unique.
 			  Default: 20
 	-r GENOME	: Fasta file with the reference genome. Required for
@@ -1363,8 +1384,11 @@ cluster. Gene ids within each cluster are separated by tab.
 Identifying transposable elements
 ---------------------------------
 
-Receives a genome assembly in fasta format and a file with known transposable
-elements (TEs) and annotates regions in the assembly with TEs.
+Receives a genome assembly in fasta format and annotates regions in the
+assembly with TEs. It can receive a file with known transposable elements (TEs)
+or it can find TEs deNovo. The main output is a GFF file with regions of the
+genome annotated with transposons. If the deNovo option is activated, it also
+generates a fasta file with the sequences of conserved TEs.
 
 USAGE:
 
@@ -1384,6 +1408,11 @@ OPTIONS:
 		  parameter helps to control the amount of memory spent by the
 		  process at the expense of increased runtime. 
 		  Default: 0 (no limit).
+	-n	: Runs the process for de-novo identification of conserved TEs.
+		  WARN: It causes an important increase in runtime
+	-kn INT	: De Novo analysis kmer length. Default: 11
+	-k INT	: Similarity analysis kmer length. Default: 15
+	-w INT	: Similarity analysis window length. Default: 20
 	-t INT	: Number of threads. Default: 1
 
 -----------------------------------------------
@@ -1722,8 +1751,10 @@ statistics separated by semicolon:
 3. Observed heterozygosity
 4. F-statistic (1-OH/EH)
 5. Minor allele frequency (MAF)
-6. Chi-square value of departure from HWE
-7. Uncorrected p-value of the Chi-square test for departure from HWE
+6. Reference allele frequency
+7. Chi-square value of departure from HWE
+8. Uncorrected p-value of the Chi-square test for departure from HWE
+9. Uncorrected p-value of the Fisher Exact test for departure from HWE
 
 If a file with population assignments is provided, this module will output one
 column of statistics for the whole group and one column for each population.

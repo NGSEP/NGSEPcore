@@ -1,4 +1,4 @@
-<software name="NGSEP" version="5.1.1" date="01-03-2026" jar="NGSEPcore">
+<software name="NGSEP" version="5.1.1" date="29-05-2026" jar="NGSEPcore">
 <title>Next Generation Sequencing Experience Platform</title>
 <url>http://sourceforge.net/projects/ngsep/files/Library/</url>
 
@@ -328,11 +328,11 @@ Calculates basic statistics for genome assemblies
 </intro>
 <title>Evaluating genome assemblies</title>
 <description>
-Calculates basic statistics for genome assemblies such as number fo contigs, total length
-maximum length and N-statistics.
+Calculates basic statistics for genome assemblies. The current output includes the number of
+contigs, total length maximum length and N-statistics.
 </description>
 <option id="i" type="FILE" attribute="inputFile">
-Input file. It can be gzip compressed.
+Input fasta file. It can be gzip compressed.
 </option>
 <option id="o" type="FILE" attribute="outputFile">
 Output file with statistics
@@ -491,7 +491,7 @@ Aligns sequencing reads to a reference genome
 <title>Aligning reads to reference genomes</title>
 <description>
 Calculates a list of genomic regions for sites where the reads can be found in a reference genome.
-It receives up to two files with raw reads in fastq format and the reference genome.
+It receives up to two files with raw reads and the reference genome.
 To map short reads to long genomes, a precalculated FM index can also be provided with the option -d.
 See command GenomeIndexer for construction of the FM index.
 It provides as output a file with alignments to the reference genome in BAM format.
@@ -525,7 +525,7 @@ Supported platforms include ILLUMINA, IONTORRENT, PACBIO and ONT.
 If not provided, it will be guessed sampling the first 1000 reads.
 </option>
 <option id="f" type="INT" attribute="inputFormat" defaultConstant="INPUT_FORMAT_FASTQ">
-Format of the input file. It can be 0 for fastq or 1 for fasta.
+Format of the input file. It can be 0 for fastq, 1 for fasta or 2 for BAM.
 </option>
 <option id="k" type="INT" attribute="kmerLength" defaultConstant="DEF_KMER_LENGTH">
 K-mer length.
@@ -845,7 +845,7 @@ Input file with read alignments.
 Output VCF file with phased variants.
 </option>
 <option id="ob" type="FILE" attribute="outputAlignmentsFile">
-Output BAM file to save the variants with phase information
+Output BAM file to save the alignments with phase information.
 </option>
 <option id="a" type="STRING" attribute="algorithmName" defaultConstant="DEF_ALGORITHM_NAME" >
 Algorithm for single individual haplotyping. It can be Refhap or DGS.
@@ -1224,8 +1224,10 @@ Annotates transposable elements in a genome assembly
 <description>
 Receives a genome assembly in fasta format and annotates regions in the assembly with TEs.
 It can receive a file with known transposable elements (TEs) or it can find TEs deNovo.
-The output is a file with regions of the genome annotated with transposons.
-If the deNovo option is activated, it also generates a fasta file with the TE sequences.
+The main output is a GFF file with regions of the genome annotated with transposons.
+If the deNovo option is activated, it also generates a fasta file with the sequences of conserved TEs.
+See the README.txt file for details on the output.
+
 </description>
 <option id="i" type="FILE" attribute="inputFile">
 Input genome to annotate in fasta format. It can be gzip compressed.
@@ -1251,17 +1253,17 @@ Runs the process for de-novo identification of conserved TEs. WARN: It causes an
 <option id="v" type="BOOLEAN" attribute="validateFamily">
 Infer the family of large TE annotations using HMM alignments. WARN: It causes an important increase in runtime.
 </option>
-<option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
-Number of threads.
-</option>
 <option id="kn" type="INT" attribute="kmerLengthDenovo" defaultConstant="DEF_DENOVO_KMER_LENGTH">
-De Novo Analysis Kmer length.
+De Novo analysis kmer length.
 </option>
 <option id="k" type="INT" attribute="kmerLengthSimilarity" defaultConstant="DEF_SIMILARITY_KMER_LENGTH">
-Similarity Analysis Kmer length.
+Similarity analysis kmer length.
 </option>
 <option id="w" type="INT" attribute="windowLengthSimilarity" defaultConstant="DEF_SIMILARITY_WINDOW_LENGTH">
-Similarity Analysis Window length.
+Similarity analysis window length.
+</option>
+<option id="t" type="INT" attribute="numThreads" defaultConstant="DEF_NUM_THREADS">
+Number of threads.
 </option>
 </command>
 
@@ -1868,9 +1870,6 @@ Input file in VCF format. It can be gzip compressed.
 <option id="p" type="FILE" attribute="populationsFile">
 File with population assignments for the samples.
 A two column text file with the sample ids in the first column and the ids of the populations in the second column.
-</option>
-<option id="f" type="FILE" attribute="vcfTestFile">
-VCF file with additional samples to infer haplotype composition.
 </option>
 <option id="o" type="FILE" attribute="outputPrefix">
 Prefix of the output files. 

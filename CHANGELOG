@@ -1,6 +1,19 @@
-v5.1.1 28-05-2026
+v5.1.1 29-05-2026
+- New command AssemblyStats to calculate statistics of genome assemblies
 - ReadsAligner. The input format option -f can now receive the value 2 for
   mapping of reads in BAM format.
+- MultisampleVariantsDetector. Implemented multithreading. New option -t to
+  specify the number of threads.
+- SingleSampleVariantsDetector. Implemented multithreading. New option -t to
+  specify the number of threads.
+- SIH. New option -ob to output a bam file with assignments of aligned reads to
+  haplotypes.
+- TransposonsFinder. The option -o is now a prefix to output multiple files.
+- TransposonsFinder. New option -n to activate the deNovo identification of TEs
+  the current version implements a new algorithm to identify conserved LTRs.
+- TransposonsFinder. New options to control the kmer length for the de-novo
+  algorithm (-nk), the kmer length for the search algorithm (-k) and the window
+  length for the search algorithm (-w).
 - Diversity statistics. Included Fisher exact test for departure from HWE.
    
 v5.1.0 29-05-2025
