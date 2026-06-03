@@ -164,7 +164,7 @@ public class HaplotypeReadsClusterCalculator {
 		path.setSequenceName(sequenceName);
 		int countHetVars = 0;
 		List<ReadAlignment> alignments = new ArrayList<>(alignmentRecords.size());
-		Map<Integer,ReadAlignment> alnsByReadId = new HashMap<>();
+		Map<Integer,ReadAlignment> alnsByReadId = new HashMap<>(alignments.size());
 		Set<Integer> unalignedReadIds = new HashSet<>();
 		for(ReadAlignment aln:alignmentRecords) {
 			if(aln.isReadUnmapped()) unalignedReadIds.add(aln.getReadNumber());

@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 import java.util.Iterator;
 
@@ -267,6 +269,8 @@ public class SingleIndividualHaplotyper {
 	public List<HaplotypeBlock> phaseSequenceVariants (String seqName, List<CalledGenomicVariant> hetCalls, List<ReadAlignment> alignments) {
 		//HaplotypeBlock block = new HaplotypeBlock(hetCalls);
 		List<HaplotypeFragment> fragments = new ArrayList<>();
+		Map<Integer,ReadAlignment> alnsByReadId = new HashMap<Integer, ReadAlignment>(alignments.size());
+		for(ReadAlignment aln:alignments) alnsByReadId.put(aln.getReadNumber(),aln);
 		
 		List<HaplotypeBlock> answer = new ArrayList<HaplotypeBlock>();
 		int i=0;
@@ -327,7 +331,7 @@ public class SingleIndividualHaplotyper {
 				CalledGenomicVariant nextCall = hetCalls.get(firstAln);
 				log.info("Discontiguity in haplotype block for sequence: "+seqName+". Last SNP with information "+lastNextBlock +" "+lastCall.getFirst()+" next SNP: "+firstAln+" "+nextCall.getFirst()+" next alignment: "+aln);
 				if(fragments.size()>0) {	
-					phaseFragments(seqName, firstNextBlock, lastNextBlock, hetCalls, alignments, fragments, answer);
+					phaseFragments(seqName, firstNextBlock, lastNextBlock, hetCalls, alnsByReadId, fragments, answer);
 				}
 				fragments = new ArrayList<>();
 				firstNextBlock = firstAln;
@@ -341,24 +345,24 @@ public class SingleIndividualHaplotyper {
 		}
 		
 		if(fragments.size()>0) {	
-			phaseFragments(seqName, firstNextBlock, lastNextBlock, hetCalls, alignments, fragments, answer);
+			phaseFragments(seqName, firstNextBlock, lastNextBlock, hetCalls, alnsByReadId, fragments, answer);
 		}
 		return answer;
 	}
-	private void phaseFragments(String seqName, int firstNextBlock, int lastNextBlock, List<CalledGenomicVariant> hetCalls, List<ReadAlignment> alignments, List<HaplotypeFragment> fragments, List<HaplotypeBlock> answer) {
+	private void phaseFragments(String seqName, int firstNextBlock, int lastNextBlock, List<CalledGenomicVariant> hetCalls, Map<Integer,ReadAlignment> alnsByReadId, List<HaplotypeFragment> fragments, List<HaplotypeBlock> answer) {
 		if(algorithm==null) loadAlgorithm();
 		List<CalledGenomicVariant> blockCalls = selectBlockCalls(hetCalls,firstNextBlock,lastNextBlock);
 		HaplotypeBlock block = new HaplotypeBlock(blockCalls,fragments);
 		algorithm.buildHaplotype(block);
 		block.phaseCallsWithHaplotype(firstNextBlock, lastNextBlock);
-		if(outputAlignmentsFile!=null) assignReadsToHaplotpyes(block,alignments);
+		if(outputAlignmentsFile!=null) assignReadsToHaplotpyes(block,alnsByReadId);
 		double mec = block.calculateMECCurrentHaplotypes();
 		double mecProportion = mec/block.calculateTotalCalls();
 		log.info("Phased block of "+seqName+" between "+firstNextBlock+" and "+lastNextBlock+" with "+blockCalls.size()+" variants and "+block.getNumFragments()+" fragments. MEC: "+mec+" MECproportion: "+mecProportion+" calls proportion: "+block.calculateRelativeCallsProportion());
 		if(mecProportion<DEF_MAX_MEC_PROPORTION) answer.add(block);
 	}
 	private int nextBlockId = 1;
-	private void assignReadsToHaplotpyes(HaplotypeBlock block, List<ReadAlignment> alignments) {
+	private void assignReadsToHaplotpyes(HaplotypeBlock block, Map<Integer,ReadAlignment> alnsByReadId) {
 		List<List<Integer>> phasedReadIds = block.getClusteredFragmentIds();
 		if(phasedReadIds.size()<2) return;
 		int blockId = nextBlockId;
@@ -366,7 +370,7 @@ public class SingleIndividualHaplotyper {
 		for(int b=0;b<phasedReadIds.size();b++) {
 			List<Integer> readIdsPhase = phasedReadIds.get(b);
 			for(int readId:readIdsPhase) {
-				ReadAlignment aln = alignments.get(readId);
+				ReadAlignment aln = alnsByReadId.get(readId);
 				aln.setHaplotypeBlock(blockId);
 				aln.setPhaseAssignment((byte)b);
 			}
