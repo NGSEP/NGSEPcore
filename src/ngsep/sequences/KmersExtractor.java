@@ -76,12 +76,13 @@ public class KmersExtractor {
 	private int numThreads = DEF_NUM_THREADS;
 	private int minReadLength = 0;
 	private int minReadAverageQuality = 0;
-	private boolean readNCharacters = true;
 	
 	// Model attributes
 	private KmersMap kmersMap = null;
 	private boolean loadSequences = false;
 	private List<QualifiedSequence> loadedSequences = null;
+	private Class<? extends CharSequence> sequenceType = null;
+	
 	
 	
 	// Get and set methods
@@ -154,6 +155,7 @@ public class KmersExtractor {
 	}
 	public void setFreeText(Boolean freeText) {
 		this.setFreeText(freeText.booleanValue());
+		sequenceType = StringBuilder.class;
 	}
 	
 	public boolean isIgnoreLowComplexity() {
@@ -208,12 +210,11 @@ public class KmersExtractor {
 		return loadedSequences;
 	}
 	
-	
-	public boolean isReadNCharacters() {
-		return readNCharacters;
+	public Class<? extends CharSequence> getSequenceType() {
+		return sequenceType;
 	}
-	public void setReadNCharacters(boolean readNCharacters) {
-		this.readNCharacters = readNCharacters;
+	public void setSequenceType(Class<? extends CharSequence> sequenceType) {
+		this.sequenceType = sequenceType;
 	}
 	/**
 	 * Receives the parameters from the command line interface and distributes the duties
@@ -292,9 +293,7 @@ public class KmersExtractor {
     	ThreadPoolManager poolKmers = new ThreadPoolManager(numThreads, 100);
     	long totalLength = 0;
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
-			if(freeText) reader.setSequenceType(StringBuilder.class);
-			else if(readNCharacters) reader.setSequenceType(DNAMaskedSequence.class);
-			else reader.setSequenceType(DNASequence.class);
+			if(sequenceType!=null) reader.setSequenceType(sequenceType);
 			if(minReadAverageQuality==0) reader.setLoadMode(FastqFileReader.LOAD_MODE_WITH_NAME);
 			else reader.setMinAverageQuality(minReadAverageQuality);
 			Iterator<RawRead> it = reader.iterator();
@@ -320,9 +319,7 @@ public class KmersExtractor {
 		initialize();
 		ThreadPoolManager poolKmers = new ThreadPoolManager(numThreads, 1000);
 		try (FastqFileReader reader = new FastqFileReader(fis)) {
-			if(freeText) reader.setSequenceType(StringBuilder.class);
-			else if(readNCharacters) reader.setSequenceType(DNAMaskedSequence.class);
-			else reader.setSequenceType(DNASequence.class);
+			if(sequenceType!=null) reader.setSequenceType(sequenceType);
 			Iterator<RawRead> it = reader.iterator();
 			for (int i=0;it.hasNext();i++) {
 				RawRead read = it.next();
@@ -345,9 +342,7 @@ public class KmersExtractor {
     	initialize();
     	ThreadPoolManager poolKmers = new ThreadPoolManager(numThreads, 1000);
     	try (FastaFileReader reader = new FastaFileReader(filename)) {
-    		if(freeText) reader.setSequenceType(StringBuilder.class);
-			else if(readNCharacters) reader.setSequenceType(DNAMaskedSequence.class);
-			else reader.setSequenceType(DNASequence.class);
+    		if(sequenceType!=null) reader.setSequenceType(sequenceType);
 			Iterator<QualifiedSequence> it = reader.iterator();
 			for (int i=0;it.hasNext();i++) {
 				QualifiedSequence seq = it.next();

@@ -377,9 +377,7 @@ public class Assembler {
 		KmersExtractor extractor = new KmersExtractor();
 		extractor.setLog(log);
 		extractor.setNumThreads(numThreads);
-		extractor.setReadNCharacters(false);
-		
-		
+		extractor.setSequenceType(DNASequenceRandomReplacementNonDNAChars.class);
 		
 		List<QualifiedSequence> sequences;
 		//correctReads(sequences,map);

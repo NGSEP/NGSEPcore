@@ -33,6 +33,7 @@ import java.util.logging.Logger;
 
 import ngsep.main.io.ConcatGZIPInputStream;
 import ngsep.math.PhredScoreHelper;
+import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.RawRead;
 
 /**
@@ -162,6 +163,7 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 			}
 		}
 		in = new BufferedReader(new InputStreamReader(stream));
+		setSequenceType(DNAMaskedSequence.class);
 	}
 	/**
 	 * Loads a raw read from the given BufferedReader

@@ -7,6 +7,10 @@ public class DNASequenceRandomReplacementNonDNAChars extends DNASequence {
 	private static final long serialVersionUID = 1L;
 	private static Random random = new Random();
 	
+	public DNASequenceRandomReplacementNonDNAChars () {
+		super();
+	}
+	
 	public DNASequenceRandomReplacementNonDNAChars (CharSequence sequence) {
 		super(sequence);
 	}
