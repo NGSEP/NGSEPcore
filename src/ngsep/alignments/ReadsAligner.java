@@ -367,7 +367,6 @@ public class ReadsAligner {
 		int numQSSampled = 0;
 		if(inputFormat == INPUT_FORMAT_FASTQ) {
 			try (FastqFileReader reader = new FastqFileReader(inputFile)) {
-				reader.setSequenceType(DNAMaskedSequence.class);
 				Iterator<RawRead> it = reader.iterator();
 				for(int i=1;it.hasNext() && i<sampleSize;i++) {
 					RawRead read = it.next();
@@ -440,7 +439,6 @@ public class ReadsAligner {
 		if(platform==null) guessPlatform(readsFile);
 		if(inputFormat == INPUT_FORMAT_FASTQ) {
 			try (FastqFileReader reader = new FastqFileReader(readsFile)) {
-				reader.setSequenceType(DNAMaskedSequence.class);
 				Iterator<RawRead> it = reader.iterator();
 				for(int i=1;it.hasNext();i++) {
 					RawRead read = it.next();
@@ -477,7 +475,6 @@ public class ReadsAligner {
 	private void alignReads(InputStream in, ReadAlignmentFileWriter writer) throws IOException, InterruptedException {
 		if(inputFormat == INPUT_FORMAT_FASTQ) {
 			try (FastqFileReader reader = new FastqFileReader(in)) {
-				reader.setSequenceType(DNAMaskedSequence.class);
 				Iterator<RawRead> it = reader.iterator();
 				for(int i=1;it.hasNext();i++) {
 					RawRead read = it.next();
@@ -487,7 +484,6 @@ public class ReadsAligner {
 			}
 		} else if(inputFormat== INPUT_FORMAT_FASTA) {
 			try (FastaFileReader reader = new FastaFileReader(in)) {
-				reader.setSequenceType(DNAMaskedSequence.class);
 				Iterator<QualifiedSequence> it = reader.iterator();
 				for(int i=1;it.hasNext();i++) {
 					QualifiedSequence seq = it.next();
@@ -535,8 +531,6 @@ public class ReadsAligner {
 		if(platform==null) platform = ReadAlignment.Platform.ILLUMINA;
 		try (FastqFileReader reader1 = new FastqFileReader(readsFile1);
 			 FastqFileReader reader2 = new FastqFileReader(readsFile2)) {
-			reader1.setSequenceType(DNAMaskedSequence.class);
-			reader2.setSequenceType(DNAMaskedSequence.class);
 			Iterator<RawRead> it1 = reader1.iterator();
 			Iterator<RawRead> it2 = reader2.iterator();
 			for(int i=1;it1.hasNext() && it2.hasNext();i++) {

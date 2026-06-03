@@ -122,7 +122,6 @@ public class FastqFileFilter {
 		try (FastqFileReader reader = new FastqFileReader(inputFile);
 			 OutputStream os = new GZIPOutputStream(new FileOutputStream(outputFile));
 			 PrintStream out = new PrintStream(os)) {
-			reader.setSequenceType(DNASequence.class);
 			reader.setMinAverageQuality(minReadAverageQuality);
 			Iterator<RawRead> it = reader.iterator();
 			while (it.hasNext()) {
