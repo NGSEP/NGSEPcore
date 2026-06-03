@@ -192,7 +192,7 @@ public class VCFRelativeCoordinatesTranslator {
 		out.println("Output prefix:"+ outputPrefix);
 		if(filenameAlignmentBAM!=null) out.println("Aligned consensus sequenced will be loaded from:"+ filenameAlignmentBAM);
 		else if (filenameConsensusFA!=null)  out.println("Fasta fie with consensus sequences:"+ filenameConsensusFA);
-		if(fmIndexFile!=null) out.println("FM-index file:"+ fmIndexFile);
+		if(fmIndexFile!=null) out.println("FM-index file: "+ fmIndexFile);
 		log.info(os.toString());
 	}
 	
@@ -451,13 +451,15 @@ public class VCFRelativeCoordinatesTranslator {
 	public Map<String, ReadAlignment> alignConsensusSequences(String consensusSequencesFile) throws IOException {
 		String debugConsensusName = null;
 		Map<String, ReadAlignment> alignments = new HashMap<String, ReadAlignment>();
-		
-		ReadsAligner aligner = new ReadsAligner(genome,Platform.ILLUMINA);
-		aligner.setLog(log);
+		ReferenceGenomeFMIndex fmIndex;
 		if(fmIndexFile!=null) {
-			aligner.setFmIndex(ReferenceGenomeFMIndex.load(genome, fmIndexFile));
+			log.info("Loading FM index from file: "+fmIndexFile);
+			fmIndex = ReferenceGenomeFMIndex.load(genome, fmIndexFile);
 		}
-		else aligner.setFmIndex(new ReferenceGenomeFMIndex(genome, log));
+		else fmIndex = new ReferenceGenomeFMIndex(genome, log);
+		
+		ReadsAligner aligner = new ReadsAligner(genome, fmIndex, Platform.ILLUMINA);
+		aligner.setLog(log);
 		
 		aligner.setMaxAlnsPerRead(1);
 		String pairedEndAnchor = ReadCluster.MIDDLE_N_SEQUENCE_PAIRED_END;

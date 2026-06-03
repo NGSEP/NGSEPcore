@@ -275,10 +275,8 @@ public class ReadsAligner {
 		logParameters ();
 		if(genome==null) throw new IOException("The reference genome is a required parameter");
 		if(fmIndexFile!=null) {
-			if (fmIndexFile!=null) {
-				log.info("Loading reference index from file: "+fmIndexFile);
-				fMIndex = ReferenceGenomeFMIndex.load(genome, fmIndexFile);
-			}
+			log.info("Loading reference index from file: "+fmIndexFile);
+			fMIndex = ReferenceGenomeFMIndex.load(genome, fmIndexFile);
 		}
 		initializeFactory();
 		QualifiedSequenceList sequences = genome.getSequencesMetadata();
@@ -320,6 +318,14 @@ public class ReadsAligner {
 	
 	public ReadsAligner(ReferenceGenome genome, Platform platform) {
 		this.genome = genome;
+		this.platform = platform;
+		initializeFactory();
+		//if (platform.isLongReads()) initializeLongReadsFactory();
+	}
+	
+	public ReadsAligner(ReferenceGenome genome, ReferenceGenomeFMIndex fmIndex, Platform platform) {
+		this.genome = genome;
+		this.fMIndex = fmIndex;
 		this.platform = platform;
 		initializeFactory();
 		//if (platform.isLongReads()) initializeLongReadsFactory();
