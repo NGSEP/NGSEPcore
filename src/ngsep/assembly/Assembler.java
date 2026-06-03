@@ -35,6 +35,7 @@ import java.util.zip.GZIPOutputStream;
 import ngsep.sequences.CountsBasedShortKmerCodesHashFunction;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
+import ngsep.sequences.DNASequenceRandomReplacementNonDNAChars;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.KmersMap;
 import ngsep.sequences.KmersMapAnalyzer;
@@ -699,7 +700,7 @@ public class Assembler {
 		List<QualifiedSequence> sequences;
 		if (INPUT_FORMAT_FASTQ == inputFormat) sequences = loadFastq(filename,minReadLength);
 		else if (INPUT_FORMAT_FASTA==inputFormat) sequences = loadFasta(filename, minReadLength);
-		else throw new IOException("the file not is a fasta or fastq file: " + filename);
+		else throw new IOException("Invalid input format: " + inputFormat);
 		Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
 		return sequences;
 	}
@@ -712,7 +713,7 @@ public class Assembler {
 	 */
 	private List<QualifiedSequence> loadFasta(String filename, int minReadLength) throws IOException {
 		FastaSequencesHandler handler = new FastaSequencesHandler();
-		handler.setSequenceType(DNASequence.class);
+		handler.setSequenceType(DNASequenceRandomReplacementNonDNAChars.class);
 		List<QualifiedSequence> seqsQL = handler.loadSequences(filename);
 		List<QualifiedSequence> answer = new ArrayList<QualifiedSequence>();
 		for(QualifiedSequence seq:seqsQL) {
@@ -731,7 +732,7 @@ public class Assembler {
 	private List<QualifiedSequence> loadFastq(String filename, int minReadLength) throws IOException {
 		List<QualifiedSequence> sequences = new ArrayList<>();
 		try (FastqFileReader reader = new FastqFileReader(filename)) {
-			reader.setSequenceType(DNASequence.class);
+			reader.setSequenceType(DNASequenceRandomReplacementNonDNAChars.class);
 			reader.setMinAverageQuality(minReadAverageQuality);
 			Iterator<RawRead> it = reader.iterator();
 			while (it.hasNext()) {
