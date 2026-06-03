@@ -256,6 +256,7 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 	}
 	private int currentSequenceIdx = -1;
 	private String currentSequenceName = null;
+	private int readNumber = 1;
 	
 	private ReadAlignment loadAlignment(SAMRecord alnRecord) {
 		String refName = alnRecord.getReferenceName();
@@ -279,6 +280,8 @@ public class ReadAlignmentFileReader implements Iterable<ReadAlignment>,Closeabl
 		
 		ReadAlignment answer = new ReadAlignment(sequenceName, alnRecord.getAlignmentStart(), alnRecord.getAlignmentEnd(), alnRecord.getReadLength(), flags);
 		answer.setSequenceIndex(currentSequenceIdx);
+		answer.setReadNumber(readNumber);
+		readNumber++;
 		if(loadMode != LOAD_MODE_MINIMAL) {
 			String cigar = null;
 			if(!SAMRecord.NO_ALIGNMENT_CIGAR.equals(alnRecord.getCigarString())) cigar = alnRecord.getCigarString();

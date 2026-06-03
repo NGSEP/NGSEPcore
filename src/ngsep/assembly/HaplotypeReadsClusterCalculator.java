@@ -185,11 +185,7 @@ public class HaplotypeReadsClusterCalculator {
 				SingleIndividualHaplotyper sih = new SingleIndividualHaplotyper();
 				sih.setAlgorithmName(SingleIndividualHaplotyper.ALGORITHM_NAME_REFHAP);
 				//sih.setAlgorithmName(SingleIndividualHaplotyper.ALGORITHM_NAME_DGS);
-				try {
-					haplotypeBlocks = sih.phaseSequenceVariants(sequenceName, hetVars, alignments);
-				} catch (IOException e) {
-					throw new RuntimeException (e);
-				}
+				haplotypeBlocks = sih.phaseSequenceVariants(sequenceName, hetVars, alignments);
 			}
 		}
 		
@@ -229,13 +225,16 @@ public class HaplotypeReadsClusterCalculator {
 			//Not enough variants for a correction block
 			if(globalPloidy==1 && hetVars.size()<5) continue;
 			List<Integer> readIdsHap0 = readIdsClusters.get(0);
+			//System.out.println("Ids0:"+readIdsHap0);
 			List<Integer> readIdsHap1 = readIdsClusters.get(1);
+			//System.out.println("Ids1:"+readIdsHap1);
 			//Not real phasing
 			if(readIdsHap0.size()==0 || readIdsHap1.size()==0) continue;
 			int totalBasePairs = 0;
 			Set<Integer> sequenceIdsHap0 = new HashSet<Integer>();
 			for(int readId:readIdsHap0) {
 				ReadAlignment aln = alnsByReadId.get(readId);
+				//if(aln==null) System.out.println("Id "+readId+" of hap0 not found in alnsByReadid");
 				sequenceIdsHap0.add(aln.getReadNumber());
 				totalBasePairs+=aln.getReadLength();
 				if(aln.getReadNumber()==975) System.out.println("Adding read "+aln.getReadName()+" to first haplotype of block with "+block.getNumVariants()+" variants");
@@ -243,6 +242,7 @@ public class HaplotypeReadsClusterCalculator {
 			Set<Integer> sequenceIdsHap1 = new HashSet<Integer>();
 			for(int readId:readIdsHap1) {
 				ReadAlignment aln = alnsByReadId.get(readId);
+				//if(aln==null) System.out.println("Id "+readId+" of hap1 not found in alnsByReadid");
 				sequenceIdsHap1.add(aln.getReadNumber());
 				totalBasePairs+=aln.getReadLength();
 				//if(aln.getReadNumber()==61) System.out.println("Adding read "+aln.getReadName()+" to second haplotype of block with "+block.getNumVariants()+" variants");

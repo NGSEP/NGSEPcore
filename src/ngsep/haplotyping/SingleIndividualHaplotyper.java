@@ -220,7 +220,7 @@ public class SingleIndividualHaplotyper {
 		}
 	}
 	
-	private void loadAlgorithm() throws IOException {
+	private void loadAlgorithm() {
 		try {
 			String algorithmClassName = "ngsep.haplotyping."+algorithmName+"SIHAlgorithm";
 			Class<?> algClass = Class.forName(algorithmClassName);
@@ -228,7 +228,7 @@ public class SingleIndividualHaplotyper {
 			algorithm = (SIHAlgorithm) constructor.newInstance();
 			algorithm.setLog(log);
 		} catch (Exception e) {
-			throw new IOException("Can not load algorithm: "+algorithmName,e);
+			throw new RuntimeException("Can not load algorithm: "+algorithmName,e);
 		}
 		
 	}
@@ -257,18 +257,22 @@ public class SingleIndividualHaplotyper {
 		if(aln.isSecondary()) return false;
 		return true;
 	}
-	public List<HaplotypeBlock> phaseSequenceVariants (String seqName, List<CalledGenomicVariant> hetCalls, List<ReadAlignment> alignments) throws IOException {
+	/**
+	 * Phase the given variants using the given alignments
+	 * @param seqName Sequence name
+	 * @param hetCalls Heterozygous calls to phase
+	 * @param alignments List of alignments to phase. Each alignment must have a valid read number
+	 * @return List<HaplotypeBlock> Blocks containing phased reads
+	 */
+	public List<HaplotypeBlock> phaseSequenceVariants (String seqName, List<CalledGenomicVariant> hetCalls, List<ReadAlignment> alignments) {
 		//HaplotypeBlock block = new HaplotypeBlock(hetCalls);
 		List<HaplotypeFragment> fragments = new ArrayList<>();
 		
 		List<HaplotypeBlock> answer = new ArrayList<HaplotypeBlock>();
-		int n=0;
 		int i=0;
 		int firstNextBlock = 0;
 		int lastNextBlock = -1;
 		for(ReadAlignment aln:alignments) {
-			aln.setReadNumber(n);
-			n++;
 			//Advance i
 			GenomicVariant firstHetVar = null;
 			while(i<hetCalls.size()) {
@@ -341,8 +345,7 @@ public class SingleIndividualHaplotyper {
 		}
 		return answer;
 	}
-	private void phaseFragments(String seqName, int firstNextBlock, int lastNextBlock, List<CalledGenomicVariant> hetCalls, List<ReadAlignment> alignments, List<HaplotypeFragment> fragments, List<HaplotypeBlock> answer)
-			throws IOException {
+	private void phaseFragments(String seqName, int firstNextBlock, int lastNextBlock, List<CalledGenomicVariant> hetCalls, List<ReadAlignment> alignments, List<HaplotypeFragment> fragments, List<HaplotypeBlock> answer) {
 		if(algorithm==null) loadAlgorithm();
 		List<CalledGenomicVariant> blockCalls = selectBlockCalls(hetCalls,firstNextBlock,lastNextBlock);
 		HaplotypeBlock block = new HaplotypeBlock(blockCalls,fragments);
