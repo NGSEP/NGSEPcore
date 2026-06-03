@@ -305,7 +305,7 @@ Evaluating genome assemblies
 ----------------------------
 
 Calculates basic statistics for genome assemblies. The current output includes
-the number fo contigs, total length maximum length and N-statistics.
+the number of contigs, total length, maximum length and N-statistics.
 
 USAGE:
 
@@ -442,28 +442,25 @@ OPTIONS:
 			  file. For large genomes it is more efficient to index
 			  the reference once and provide the index with this
 			  option.
-	-s STRING	: Id of the sample. Default: Sample
-	-p STRING	: Sequencing platform used to produce the reads.
-			  Supported platforms include ILLUMINA, IONTORRENT,
-			  PACBIO and ONT. Default: ILLUMINA
 	-knownSTRs FILE	: Text file with location of known short tandem repeats
 			  (STRs). It is a tab-delimited file with at least
 			  three columns: Sequence name (chromosome), region
 			  first base pair coordinate (1-based, inclusive) and
 			  region last base pair coordinate (1-based, inclusive).
-	-f INT		: Format of the input file. It can be 0 for fastq or 1
-			  for fasta. Default: 0
+	-s STRING	: Id of the sample. Default: Sample
+	-p STRING	: Sequencing platform used to produce the reads.
+			  Supported platforms include ILLUMINA, IONTORRENT,
+			  PACBIO and ONT. Default: ILLUMINA
+	-f INT		: Format of the input file. It can be 0 for fastq, 1 for
+			  fasta or 2 for BAM. Default: 0
 	-k INT		: K-mer length. Default: 25
 	-m INT		: Maximum alignments per read. Default: 3
 	-minIL INT	: Minimum predicted insert length to consider an
 			  alignment proper. Default: 0
 	-maxIL INT	: Maximum predicted insert length to consider an
 			  alignment proper. Default: 1000
-	-w INT		: Window length to compute minimizers. Default: 20
+	-w INT		: Window length to compute minimizers. Default: 40
 	-t INT		: Number of threads used to align reads. Default: 1
-
-
-
 
 -------------------------------------------------------
 -------------------------------------------------------
@@ -731,9 +728,9 @@ java -jar NGSEPcore.jar SingleSampleVariantsDetector <OPTIONS>
 
 OPTIONS:
 
-	-i FILE		: Input file with read alignments.
-	-r FILE		: Fasta file with the reference genome.
-	-o FILE		: Prefix for the output files.
+	-i FILE			: Input file with read alignments.
+	-r FILE			: Fasta file with the reference genome.
+	-o FILE			: Prefix for the output files.
 	-sampleId STRING	: Id of the sample for the VCF file. If not set
 				  it looks in the BAM file header for an SM
 				  header tag. If this tag is not present, it
@@ -1398,7 +1395,7 @@ OPTIONS:
 
 	-i FILE	: Input genome to annotate in fasta format. It can be gzip
 		  compressed.
-	-o FILE	: Output file with annotations of transposable elements.
+	-o FILE	: Prefix of the output files.
 	-d FILE	: Database of transposable elements to annotate the genome.
 	-m INT	: Minimum length (in basepairs) to call a transposable
 		  element. Default: 200
@@ -1414,6 +1411,30 @@ OPTIONS:
 	-k INT	: Similarity analysis kmer length. Default: 15
 	-w INT	: Similarity analysis window length. Default: 20
 	-t INT	: Number of threads. Default: 1
+
+The current version of the software generates three output files. First, it
+generates a GFF file with the coordinates of the annotated transposons. The
+main feature for each annotation is "repeat_region". Each annotation includes
+the method used to annotate the transposon ("structural" or "homology") and the
+family assigned thorugh the classification algorithm. For LTRs identified by
+structure, additional features include "five_prime_LTR", "three_prime_LTR" and
+"target_site_duplication".
+
+The second output is a tab-delimited regions file with the following fields:
+- Chrosmosome
+- First position (1-based)
+- Last position (1-based)
+- Orientation
+- Mapped TE for homology annpotation or "DeNovo" for structural annotation
+- Family
+- Putative family for TEs identified by homology
+- Family predicted by structural identification
+
+This file is helpful for filtering of VCF files or gene annpotations.
+
+Finally, a fasta file is generated including only the sequences of the TEs
+annotated de-novo. This file can be used for homology-based identification
+either through this command or through software such as RepeatMasker.
 
 -----------------------------------------------
 Calculating statistics on transposable elements
