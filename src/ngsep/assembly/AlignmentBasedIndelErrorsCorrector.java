@@ -331,6 +331,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 		ReadsAligner aligner = new ReadsAligner(genome, Platform.PACBIO);
 		aligner.setLog(log);
 		aligner.setNumThreads(numThreads);
+		aligner.initialize();
 		
 		long usedMemory = runtime.totalMemory()-runtime.freeMemory();
 		usedMemory/=1000000000;

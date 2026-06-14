@@ -564,6 +564,8 @@ public class AssemblyPathReadsAligner {
 		//TODO: Select correct platform
 		ReadsAligner aligner = new ReadsAligner(genome, Platform.PACBIO);
 		aligner.setLog(log);
+		aligner.setNumThreads(numThreads);
+		aligner.initialize();
 		//log.info("Aligning internal paths for path: "+path.getPathId()+" loaded kmer codes table");
 		List<ReadAlignment> alignedReads = new ArrayList<ReadAlignment>();
 		int totalReads = 0;

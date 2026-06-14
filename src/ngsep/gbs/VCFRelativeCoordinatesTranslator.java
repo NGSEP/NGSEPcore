@@ -13,7 +13,6 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
-import ngsep.alignments.ReadAlignmentPair;
 import ngsep.alignments.ReadsAligner;
 import ngsep.alignments.ReadAlignment.Platform;
 import ngsep.alignments.io.ReadAlignmentFileReader;
@@ -460,8 +459,8 @@ public class VCFRelativeCoordinatesTranslator {
 		
 		ReadsAligner aligner = new ReadsAligner(genome, fmIndex, Platform.ILLUMINA);
 		aligner.setLog(log);
-		
 		aligner.setMaxAlnsPerRead(1);
+		aligner.initialize();
 		String pairedEndAnchor = ReadCluster.MIDDLE_N_SEQUENCE_PAIRED_END;
 		int numNCharsPairedEnd = pairedEndAnchor.length();	
 		

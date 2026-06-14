@@ -278,7 +278,7 @@ public class ReadsAligner {
 			log.info("Loading reference index from file: "+fmIndexFile);
 			fMIndex = ReferenceGenomeFMIndex.load(genome, fmIndexFile);
 		}
-		initializeFactory();
+		initialize();
 		QualifiedSequenceList sequences = genome.getSequencesMetadata();
 		
 		pool = new ThreadPoolManager(numThreads, platform.isLongReads()?100:10000);
@@ -319,19 +319,18 @@ public class ReadsAligner {
 	public ReadsAligner(ReferenceGenome genome, Platform platform) {
 		this.genome = genome;
 		this.platform = platform;
-		initializeFactory();
-		//if (platform.isLongReads()) initializeLongReadsFactory();
 	}
 	
 	public ReadsAligner(ReferenceGenome genome, ReferenceGenomeFMIndex fmIndex, Platform platform) {
 		this.genome = genome;
 		this.fMIndex = fmIndex;
 		this.platform = platform;
-		initializeFactory();
-		//if (platform.isLongReads()) initializeLongReadsFactory();
 	}
 	
-	private void initializeFactory() {
+	/**
+	 * Method needed to initialize resources after setting parameters but before aligning reads
+	 */
+	public void initialize() {
 		if(factory!=null) return;
 		if(platform==null) {
 			if(inputFile!=null)
@@ -346,14 +345,13 @@ public class ReadsAligner {
 		factory.setLog(log);
 		factory.setKmerLength(kmerLength);
 		factory.setWindowLength(windowLength);
-		factory.setNumThreads(numThreads);
 		factory.setPlatform(platform);
 		factory.setFmIndex(fMIndex);
 		if(platform.isLongReads()) factory.setAlignmentAlgorithm(UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS);
 		//if(platform.isLongReads()) factory.setAlignmentAlgorithm(UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_STATIC_BAND);
 		//if(platform.isLongReads()) factory.setAlignmentAlgorithm(UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_SIMPLE_GAP);
 		else factory.setAlignmentAlgorithm(UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_SHORT_READS);
-		factory.requestClustersFinder();
+		factory.requestClustersFinder(numThreads);
 		//System.out.println("Long reads: "+platform.isLongReads());
 		factory.requestAligner();
 		log.info("Initialized aligner");
@@ -585,8 +583,7 @@ public class ReadsAligner {
 		}
 	}
 	public List<ReadAlignment> alignRead (QualifiedSequence read) {
-		initializeFactory();
-		SingleReadsAligner aligner = new SingleReadsAligner(genome, factory.requestClustersFinder(), factory.requestAligner());
+		SingleReadsAligner aligner = new SingleReadsAligner(genome, factory.requestClustersFinder(numThreads), factory.requestAligner());
 		aligner.setMaxAlnsPerRead(maxAlnsPerRead);
 		List<ReadAlignment> alns = aligner.alignRead(read);
 		
@@ -601,8 +598,7 @@ public class ReadsAligner {
 		checkProgress(readNumber);
 	}
 	public List<ReadAlignment> alignPairedEndReads(RawRead read1, RawRead read2, boolean createUnmappedReadRecords) {
-		initializeFactory();
-		PairedReadsAligner aligner = new PairedReadsAligner(genome, factory.requestClustersFinder(), factory.requestAligner());
+		PairedReadsAligner aligner = new PairedReadsAligner(genome, factory.requestClustersFinder(numThreads), factory.requestAligner());
 		aligner.setCreateUnmappedReadRecords(createUnmappedReadRecords);
 		aligner.setMaxAlnsPerRead(maxAlnsPerRead);
 		aligner.setMinInsertLength(minInsertLength);

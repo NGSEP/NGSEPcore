@@ -259,6 +259,7 @@ public class CircularSequencesProcessor {
 		ReferenceGenome genome = new ReferenceGenome(contig);
 		ReadsAligner aligner = new ReadsAligner(genome, Platform.PACBIO);
 		aligner.setLog(log);
+		aligner.initialize();
 		List<ReadAlignment> alns = new ArrayList<>();
 		for(QualifiedSequence startSeq:starts) {
 			List<ReadAlignment> alnsRead = aligner.alignRead(startSeq);

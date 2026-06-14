@@ -90,6 +90,8 @@ public class DeNovoTransposableElementsFinderMinimizers implements DeNovoTranspo
 	public List<TransposableElementAnnotation> findTransposons(ReferenceGenome genome) {
 		ReadsAligner aligner = new ReadsAligner(genome,Platform.PACBIO);
 		aligner.setMaxAlnsPerRead(100);
+		aligner.setNumThreads(numThreads);
+		aligner.initialize();
 		ThreadPoolManager pool = new ThreadPoolManager(numThreads, numThreads);
 		int sequenceLengthProcess = 2000000;
 		pool.setSecondsPerTask(sequenceLengthProcess/1000);

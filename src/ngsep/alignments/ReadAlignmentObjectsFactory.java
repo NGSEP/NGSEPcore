@@ -32,7 +32,7 @@ public class ReadAlignmentObjectsFactory {
 	private Logger log = Logger.getAnonymousLogger();
 	private int kmerLength = ReadsAligner.DEF_KMER_LENGTH;
 	private int windowLength = ReadsAligner.DEF_WINDOW_LENGTH;
-	private int numThreads = 1;
+	private int maxAligners = 100;
 	private Platform platform;
 	private int alignmentAlgorithm=UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_DYNAMIC_KMERS;
 	private ReferenceGenome genome;
@@ -60,12 +60,6 @@ public class ReadAlignmentObjectsFactory {
 	}
 	public void setWindowLength(int windowLength) {
 		this.windowLength = windowLength;
-	}
-	public int getNumThreads() {
-		return numThreads;
-	}
-	public void setNumThreads(int numThreads) {
-		this.numThreads = numThreads;
 	}
 	public ReferenceGenome getGenome() {
 		return genome;
@@ -96,9 +90,10 @@ public class ReadAlignmentObjectsFactory {
 
 
 	UngappedSearchHitsClustersFinder first=null;
-	public synchronized UngappedSearchHitsClustersFinder requestClustersFinder()  {
+	public UngappedSearchHitsClustersFinder requestClustersFinder(int numThreads)  {
 		if(first == null) {
-			createFirstFinder();
+			createFirstFinder(numThreads);
+			maxAligners = 2*numThreads;
 			return first;
 		} else if (first instanceof MinimizersUngappedSearchHitsClustersFinder){
 			MinimizersUngappedSearchHitsClustersFinder firstI = (MinimizersUngappedSearchHitsClustersFinder) first;
@@ -113,7 +108,7 @@ public class ReadAlignmentObjectsFactory {
 			return next;
 		}
 	}
-	private void createFirstFinder() {
+	private void createFirstFinder(int numThreads) {
 		Runtime runtime = Runtime.getRuntime();
 		long startTime = System.currentTimeMillis();
 		if(platform.isLongReads()) {
@@ -141,19 +136,21 @@ public class ReadAlignmentObjectsFactory {
 	}
 	private List<LongReadsUngappedSearchHitsClusterAligner> aligners = new ArrayList<LongReadsUngappedSearchHitsClusterAligner>();
 	private int lastAlignerIndex = 0;
-	public synchronized UngappedSearchHitsClusterAligner requestAligner()  {
+	public UngappedSearchHitsClusterAligner requestAligner()  {
 		if(UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_SHORT_READS==alignmentAlgorithm) return new ShortReadsUngappedSearchHitsClusterAligner();
 		if (alignmentAlgorithm!=UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_AFFINE_GAP && alignmentAlgorithm!=UngappedSearchHitsClusterAligner.ALIGNMENT_ALGORITHM_SIMPLE_GAP) {
 			return new LongReadsUngappedSearchHitsClusterAligner(alignmentAlgorithm);
 		}
-		if(aligners.size()<2*numThreads) {
-			LongReadsUngappedSearchHitsClusterAligner aligner = new LongReadsUngappedSearchHitsClusterAligner(alignmentAlgorithm);
-			aligners.add(aligner);
-			lastAlignerIndex=aligners.size()-1;
-			return aligner;
+		synchronized (aligners) {
+			if(aligners.size()<maxAligners) {
+				LongReadsUngappedSearchHitsClusterAligner aligner = new LongReadsUngappedSearchHitsClusterAligner(alignmentAlgorithm);
+				aligners.add(aligner);
+				lastAlignerIndex=aligners.size()-1;
+				return aligner;
+			}
+			lastAlignerIndex++;
+			if(lastAlignerIndex==aligners.size()) lastAlignerIndex=0;
+			return aligners.get(lastAlignerIndex);
 		}
-		lastAlignerIndex++;
-		if(lastAlignerIndex==aligners.size()) lastAlignerIndex=0;
-		return aligners.get(lastAlignerIndex);
 	}
 }
