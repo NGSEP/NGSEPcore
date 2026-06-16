@@ -1910,6 +1910,28 @@ the options -a -t and -s.
 </option>
 </command>
 
+<command id="VCFLDCalculator" class="ngsep.vcf.VCFLDCalculator" groupId="VariantsDownstream" printHelp="false">
+<intro>
+Calculates LD for variants genotyped in VCF files
+</intro>
+<title>Calculating linkage disequilibrium</title>
+<description>
+Calculates LD between pairs of variants from VCF files
+</description>
+<option id="i" type="FILE" attribute="inputFile">
+Input VCF file. 
+</option>
+<option id="o" type="FILE" attribute="outputFile">
+Output file.
+</option>
+<option id="m" type="INT" attribute="mode">
+Calculation mode. 0 for window, 1 for complete chromosomes, 2 for all pairs.
+</option>
+<option id="w" type="INT" attribute="windowSize">
+Size of the window for window mode.
+</option>
+</command>
+
 <command id="VCFRelativeCoordinatesTranslator" class="ngsep.gbs.VCFRelativeCoordinatesTranslator" groupId="VariantsDownstream">
 <intro>
 Maps VCF files build with the DeNovoGBS command to a reference genome

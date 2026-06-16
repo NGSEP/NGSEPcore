@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import ngsep.main.CommandsDescriptor;
+import ngsep.main.OptionValuesDecoder;
 import ngsep.main.ProgressNotifier;
 import ngsep.main.io.ParseUtils;
 import ngsep.variants.CalledGenomicVariant;
@@ -45,11 +46,17 @@ public class VCFLDCalculator {
 	public static final int MODE_SEQUENCE_NAMES = 1;
 	public static final int MODE_ALL_PAIRS = 2;
 	
+	public static final int DEF_WINDOW_SIZE = 1000000;
+	
 	
 	
 	private Logger log = Logger.getLogger(VCFLDCalculator.class.getName());
 	private ProgressNotifier progressNotifier=null;
+	
+	private String inputFile = null;
+	private String outputFile = null;
 	private int mode = MODE_WINDOW;
+	private int windowSize = DEF_WINDOW_SIZE;
 	
 	public Logger getLog() {
 		return log;
@@ -64,19 +71,20 @@ public class VCFLDCalculator {
 		this.progressNotifier = progressNotifier;
 	}
 	
-	public static void main(String[] args) throws Exception {
-		VCFLDCalculator instance = new VCFLDCalculator();
-		int i=CommandsDescriptor.getInstance().loadOptions(instance, args);
-		boolean systemInput = "-".equals(args[i]);
-		if(systemInput) {
-			instance.run(System.in, System.out);
-		} else {
-			String filename = args[i];
-			instance.run(filename, System.out);
-		}
-
+	
+	
+	public String getInputFile() {
+		return inputFile;
 	}
-
+	public void setInputFile(String inputFile) {
+		this.inputFile = inputFile;
+	}
+	public String getOutputFile() {
+		return outputFile;
+	}
+	public void setOutputFile(String outputFile) {
+		this.outputFile = outputFile;
+	}
 	/**
 	 * @return the mode
 	 */
@@ -89,7 +97,43 @@ public class VCFLDCalculator {
 	public void setMode(int mode) {
 		this.mode = mode;
 	}
+	public void setMode(String value) {
+		this.setMode((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
+	public int getWindowSize() {
+		return windowSize;
+	}
+	public void setWindowSize(int windowSize) {
+		this.windowSize = windowSize;
+	}
+	public void setWindowSize(String value) {
+		this.setWindowSize((int)OptionValuesDecoder.decode(value, Integer.class));
+	}
 	
+	public static void main(String[] args) throws Exception {
+		VCFLDCalculator instance = new VCFLDCalculator();
+		CommandsDescriptor.getInstance().loadOptions(instance, args);
+		instance.run();
+
+	}
+
+	
+	
+	public void run() throws Exception {
+		//TODO: log parameters
+		if(inputFile==null && outputFile == null) {
+			run(System.in, System.out);
+		} else if(outputFile==null){
+			run(inputFile, System.out);
+		} else {
+			try (PrintStream out = new PrintStream(outputFile)) {
+				if(inputFile==null) run(System.in,out);
+				else run(inputFile,out);
+			}
+			
+		}
+		
+	}
 	public void run(String filename, PrintStream out) throws IOException {
 		
 		try (VCFFileReader in = new VCFFileReader(filename)) { 
@@ -108,14 +152,13 @@ public class VCFLDCalculator {
 		
 		List<VCFRecord> recordsInMemory = new LinkedList<>();
 		in.setLoadMode(VCFFileReader.LOAD_MODE_MINIMAL);
-		//TODO: Implement modes
 		Iterator<VCFRecord> it = in.iterator();
 		String lastSeqName = null;
 		int n=0;
 		while(it.hasNext()) {
 			VCFRecord record = it.next();
 			if(!record.getVariant().isBiallelic()) continue;
-			if(!record.getSequenceName().equals(lastSeqName)) {
+			if(mode != MODE_ALL_PAIRS && !record.getSequenceName().equals(lastSeqName)) {
 				if(recordsInMemory.size()>0) {
 					calculateLDStatistics(recordsInMemory,out);
 					recordsInMemory.clear();
@@ -147,12 +190,13 @@ public class VCFLDCalculator {
 		//Array to ensure constant lookup time
 		VCFRecord [] recordsArray = records.toArray(new VCFRecord[0]);
 		for(int i=0;i<n;i++) {
+			VCFRecord r1 = recordsArray[i];
 			for(int j=i+1;j<n;j++) {
-				VCFRecord r1 = recordsArray[i];
 				VCFRecord r2 = recordsArray[j];
+				if(mode==MODE_WINDOW && r2.getFirst()-r1.getFirst()>windowSize) continue;
 				LDStatistics stats = calculateLDStatistics (r1, r2);
-				System.out.print(r1.getSequenceName()+"\t"+r1.getFirst()+"\t"+r1.getLast()+"\t"+r2.getSequenceName()+"\t"+r2.getFirst()+"\t"+r2.getLast());
-				System.out.println("\t"+(r2.getFirst()-r1.getFirst())+"\t"+stats.getSharedVariants()+"\t"+fmt.format(stats.getD())+"\t"+fmt.format(stats.getDPrime())+"\t"+fmt.format(stats.getR2()));
+				out.print(r1.getSequenceName()+"\t"+r1.getFirst()+"\t"+r1.getLast()+"\t"+r2.getSequenceName()+"\t"+r2.getFirst()+"\t"+r2.getLast());
+				out.println("\t"+(r2.getFirst()-r1.getFirst())+"\t"+stats.getSharedVariants()+"\t"+fmt.format(stats.getD())+"\t"+fmt.format(stats.getDPrime())+"\t"+fmt.format(stats.getR2()));
 			}
 		}
 		
