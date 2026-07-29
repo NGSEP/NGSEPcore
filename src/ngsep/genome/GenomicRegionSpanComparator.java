@@ -58,6 +58,10 @@ public class GenomicRegionSpanComparator implements Comparator<GenomicRegion> {
 		span = Math.min(span, last2-first2+1);
 		return span;
 	}
+	public int getSpanLength(GenomicRegion g1, GenomicRegion g2) {
+		if(!g1.getSequenceName().equals(g2.getSequenceName())) return 0;
+		return getSpanLength(g1.getFirst(), g1.getLast(),g2.getFirst(),g2.getLast());
+	}
 	public static GenomicRegionSpanComparator getInstance() {
 		return instance;
 	}
