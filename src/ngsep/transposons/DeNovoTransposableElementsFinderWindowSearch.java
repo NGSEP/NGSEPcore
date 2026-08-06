@@ -91,6 +91,7 @@ public class DeNovoTransposableElementsFinderWindowSearch implements DeNovoTrans
 			for(int i=startSteps;i<nL;i+=windowLength) {
 				final int start = i;
 				final int end = Math.min(nL, i+windowLength);
+				answP.put(start, new ArrayList<TransposableElementAnnotation>());
 				try {
 					pool.queueTask(()->findTransposonsProcess(seq, start, end, answP));
 				} catch (InterruptedException e) {
@@ -121,7 +122,7 @@ public class DeNovoTransposableElementsFinderWindowSearch implements DeNovoTrans
 	}
 	private void findTransposonsProcess(QualifiedSequence seq, int start, int end, Map<Integer,List<TransposableElementAnnotation>> answP) {
 		List<TransposableElementAnnotation> overlappingEvents = findOverlappingEvents(seq, start,end, answP);
-		answP.put(start,findTransposons(seq, start, end, overlappingEvents));
+		answP.get(start).addAll(findTransposons(seq, start, end, overlappingEvents));
 	}
 	private List<TransposableElementAnnotation> findOverlappingEvents(QualifiedSequence seq, int start, int end, Map<Integer, List<TransposableElementAnnotation>> answP) {
 		List<TransposableElementAnnotation> answer = new ArrayList<TransposableElementAnnotation>();

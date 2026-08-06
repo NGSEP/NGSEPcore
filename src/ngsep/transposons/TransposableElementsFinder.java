@@ -335,6 +335,14 @@ public class TransposableElementsFinder {
 		List<TransposableElement> sequences = new ArrayList<>();
 		for(TransposableElementAnnotation ann:elements) {
 			QualifiedSequence seq = genome.getSequenceByName(ann.getSequenceName());
+			if(ann.getFirst()<1) {
+				log.warning("Invalid start for annotation at "+ann.getSequenceName()+": "+ann.getFirst()+" "+ann.getLast());
+				continue;
+			}
+			if(ann.getLast()>seq.getLength()) {
+				log.warning("Invalid end for annotation at "+ann.getSequenceName()+": "+ann.getFirst()+" "+ann.getLast());
+				continue;
+			}
 			CharSequence sequence = seq.getCharacters().subSequence(ann.getFirst()-1, ann.getLast());
 			if(sequence==null) {
 				log.warning("No sequence for annotation at "+ann.getSequenceName()+": "+ann.getFirst()+" "+ann.getLast());
