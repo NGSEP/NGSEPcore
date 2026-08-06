@@ -78,8 +78,7 @@ public class DeNovoTransposableElementsFinderWindowSearch implements DeNovoTrans
 		return answer;
 	}
 	public List<TransposableElementAnnotation> findTransposons(QualifiedSequence seq) {
-		ThreadPoolManager pool = new ThreadPoolManager(numThreads, 1000);
-		pool.setSecondsPerTask(10);
+		
 		//Hashmap indexed by start position
 		Map<Integer,List<TransposableElementAnnotation>> answP = new HashMap<Integer,List<TransposableElementAnnotation>>();
 		int nL = seq.getLength();
@@ -89,9 +88,16 @@ public class DeNovoTransposableElementsFinderWindowSearch implements DeNovoTrans
 		for(int s=0;s<overlappingSegments;s++) {
 			int startSteps = step*s;
 			for(int i=startSteps;i<nL;i+=windowLength) {
+				answP.put(i, new ArrayList<TransposableElementAnnotation>());
+			}
+		}
+		ThreadPoolManager pool = new ThreadPoolManager(numThreads, 1000);
+		pool.setSecondsPerTask(10);
+		for(int s=0;s<overlappingSegments;s++) {
+			int startSteps = step*s;
+			for(int i=startSteps;i<nL;i+=windowLength) {
 				final int start = i;
 				final int end = Math.min(nL, i+windowLength);
-				answP.put(start, new ArrayList<TransposableElementAnnotation>());
 				try {
 					pool.queueTask(()->findTransposonsProcess(seq, start, end, answP));
 				} catch (InterruptedException e) {
