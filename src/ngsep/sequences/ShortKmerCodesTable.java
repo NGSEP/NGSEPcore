@@ -127,8 +127,8 @@ public class ShortKmerCodesTable {
 					log.warning("Reached maximum number of minimizers that can be saved "+row);
 					return;
 				}
-				matrixRowMap.put(code, row);
 				if(row>=sequencesByCodeTable.length) resizeTable();
+				matrixRowMap.put(code, row);
 			}
 		}
 		int currentCount = sequencesByCodeTableColumnLengths[row];
