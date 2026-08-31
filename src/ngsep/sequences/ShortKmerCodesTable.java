@@ -98,7 +98,7 @@ public class ShortKmerCodesTable {
 	//Hash table management methods
 	private long[] lookupHits(long code) {
 		Integer row = matrixRowMap.get(code);
-		if(row==null) return EMPTY_LONG_ARRAY;
+		if(row==null || row >= sequencesByCodeTable.length) return EMPTY_LONG_ARRAY;
 		//Select hits up to the real number of hits
 		return Arrays.copyOf(sequencesByCodeTable[row], sequencesByCodeTableColumnLengths[row]);
 	}
@@ -128,7 +128,7 @@ public class ShortKmerCodesTable {
 					return;
 				}
 				matrixRowMap.put(code, row);
-				if(row==sequencesByCodeTable.length) resizeTable();
+				if(row>=sequencesByCodeTable.length) resizeTable();
 			}
 		}
 		int currentCount = sequencesByCodeTableColumnLengths[row];
