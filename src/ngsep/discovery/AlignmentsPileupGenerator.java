@@ -70,6 +70,7 @@ public class AlignmentsPileupGenerator {
 	private int currentReferencePos = 0;
 	private int currentReferenceLast = 0;
 	private List<ReadAlignment> pendingAlignments = new ArrayList<ReadAlignment>();
+	
 	private IndelRealignerPileupListener irl = new IndelRealignerPileupListener();
 	
 	private List<ReadAlignment> sameStartPrimaryAlignments = new ArrayList<ReadAlignment>();
@@ -193,6 +194,16 @@ public class AlignmentsPileupGenerator {
 	
 	public void setRealignIndels(boolean realignIndels) {
 		this.realignIndels = realignIndels;
+	}
+	
+	
+
+	public double getMinPropSupportIndelCalls() {
+		return irl.getMinPropSupportIndelCalls();
+	}
+
+	public void setMinPropSupportIndelCalls(double minPropSupportIndelCalls) {
+		irl.setMinPropSupportIndelCalls(minPropSupportIndelCalls);
 	}
 
 	public int getNumThreads() {

@@ -34,13 +34,16 @@ import java.util.TreeMap;
  */
 public class CountsRankHelper <T> {
 	private Map<T,CountObjectPair<T>> countsMap = new TreeMap<T,CountObjectPair<T>>();
+	private int maxCount = 0;
 	public void add (T o) {
 		CountObjectPair<T> count = countsMap.get(o);
 		if(count == null) {
-			countsMap.put(o, new CountObjectPair<T>(o));
+			count = new CountObjectPair<T>(o);
+			countsMap.put(o, count);
 		} else {
 			count.addCount();
 		}
+		maxCount = Math.max(maxCount, count.getCount());
 	}
 	public LinkedHashMap<T,Integer> selectBest(int max) {
 		
@@ -64,6 +67,9 @@ public class CountsRankHelper <T> {
 	}
 	public int getNumDifferent() {
 		return countsMap.size();
+	}
+	public int getMaxCount() {
+		return maxCount;
 	}
 }
 class CountObjectPair <T> {

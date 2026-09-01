@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
+import ngsep.alignments.ReadAlignment.Platform;
+import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.discovery.rd.ReadDepthBin;
 import ngsep.discovery.rd.ReadDepthDistribution;
 import ngsep.discovery.rd.SingleSampleReadDepthAlgorithm;
@@ -931,6 +933,11 @@ public class SingleSampleVariantsDetector implements PileupListener {
 		header.addSample(s, printSamplePloidy);
 		
 		generator.setRealignIndels(true);
+		//Look for platform in the input file
+		try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(inputFile)) {
+			Platform platform = reader.getUniquePlatform();
+			if(platform!=null && platform == Platform.ONT) generator.setMinPropSupportIndelCalls(0.4/normalPloidy);
+		}
 		varListener.clear();
 		varListener.setGenome(genome);
 		varListener.setSample(s);

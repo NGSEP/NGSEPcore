@@ -31,6 +31,7 @@ import ngsep.alignments.ReadAlignment;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
+import ngsep.math.CountsRankHelper;
 import ngsep.math.NumberArrays;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
@@ -46,6 +47,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 	private int minBPForGoodRefAln = 5;
 	private int maxBPRealignmentEnd = 50;
 	private HammingSequenceDistanceMeasure hammingMeasure = new HammingSequenceDistanceMeasure();
+	private double minPropSupportIndelCalls = 0;
 	
 	
 	private List<? extends GenomicVariant> seqInputVariants;
@@ -72,7 +74,13 @@ public class IndelRealignerPileupListener implements PileupListener {
 		this.genome = genome;
 	}
 	
-	
+	public double getMinPropSupportIndelCalls() {
+		return minPropSupportIndelCalls;
+	}
+
+	public void setMinPropSupportIndelCalls(double minPropSupportIndelCalls) {
+		this.minPropSupportIndelCalls = minPropSupportIndelCalls;
+	}
 
 	@Override
 	public void onPileup(PileupRecord pileup) {
@@ -93,6 +101,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 			//Look for the start of a new indel event from this position
 			int maxIndelLength = 0;
 			int maxIndelSpan = 0;
+			CountsRankHelper<Integer> indelLengthCounts = new CountsRankHelper<Integer>();
 			for(ReadAlignment aln:alignments) {
 				GenomicVariant indel = aln.getIndelCall(currentPos);
 				if(currentPos==posPrint) System.out.println("Read name: "+aln.getReadName()+". Alignment start: "+aln.getFirst()+" CIGAR: "+aln.getCigarString()+" Indels: "+aln.getIndelCalls());
@@ -102,13 +111,18 @@ public class IndelRealignerPileupListener implements PileupListener {
 					if(currentPos==posPrint) System.out.println("Read name: "+aln.getReadName()+". Alignment start: "+aln.getFirst()+" CIGAR: "+aln.getCigarString()+" Indel length: "+indelLength);
 					if(indelLength>maxIndelLength) maxIndelLength = indelLength;
 					if(indelSpan > maxIndelSpan) maxIndelSpan = indelSpan;
+					indelLengthCounts.add(indelSpan==1?indelLength:-indelLength);
 				}
 			}
-			if(maxIndelLength>0) predictedEventEnd = currentPos+Math.max(maxIndelLength, maxIndelSpan)+1;
+			int maxEventCount = indelLengthCounts.getMaxCount();
+			boolean passDepthCondition = minPropSupportIndelCalls==0;
+			passDepthCondition = passDepthCondition || (maxEventCount>2 && maxEventCount>=minPropSupportIndelCalls*pileup.getNumAlignments());
+			if(maxIndelLength>0 && passDepthCondition) predictedEventEnd = currentPos+Math.max(maxIndelLength, maxIndelSpan)+1;
 			if(currentPos==posPrint)System.out.println("IndelRealigner. Max indel length: "+maxIndelLength+". Max indel Span: "+maxIndelSpan+" predicted end: "+predictedEventEnd+" time: "+System.currentTimeMillis());
 		}
 		if(predictedEventEnd>currentPos) {
-			int conciliatedSpan = conciliateIndels(pileup,alignments, predictedEventEnd,var);
+			
+			int conciliatedSpan = conciliateIndels(pileup, alignments, predictedEventEnd,var);
 			if(conciliatedSpan > 0) referenceSpan = conciliatedSpan;
 			if(currentPos==posPrint)System.out.println("IndelRealigner. New reference span: "+referenceSpan+". STR: "+pileup.isSTR()+" time: "+System.currentTimeMillis());
 		}
