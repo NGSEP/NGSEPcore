@@ -410,6 +410,7 @@ public class AlignmentsPileupGenerator {
 		int filterFlags = ReadAlignment.FLAG_READ_UNMAPPED;
 		if(!processSecondaryAlignments ) {
 			filterFlags+=ReadAlignment.FLAG_SECONDARY;
+			//filterFlags+=ReadAlignment.FLAG_SUPPLEMENTARY;
 			if(!processNonUniquePrimaryAlignments) filterFlags+=ReadAlignment.FLAG_MULTIPLE_ALN;
 		}
 		reader.setFilterFlags(filterFlags);

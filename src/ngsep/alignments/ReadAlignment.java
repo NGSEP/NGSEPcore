@@ -82,6 +82,13 @@ public class ReadAlignment implements GenomicRegion {
 		public boolean isLongReads () {
 			return this == PACBIO || this == ONT;
 		}
+		public static Platform getPlatform (String name) {
+			if(name.equals(ILLUMINA.toString())) return ILLUMINA;
+			if(name.equals(IONTORRENT.toString())) return IONTORRENT;
+			if(name.equals(PACBIO.toString())) return PACBIO;
+			if(name.equals(ONT.toString())) return ONT;
+			throw new IllegalArgumentException("Unsupported platform: "+name);
+		}
 	}
 	
 	

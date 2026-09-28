@@ -130,7 +130,8 @@ public class PileupRecord {
 		if(alignments==null) return alleleCalls;
 		for(ReadAlignment aln:alignments) { 
 			CharSequence alleleCall = aln.getAlleleCall(position);
-			if(position==posPrint) System.out.println("getAlleleCalls. Allele call: "+alleleCall+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Read name: "+aln.getReadName()+". CIGAR: "+aln.getCigarString()+" refSpan: "+referenceSpan+" negativeStrand: "+aln.isNegativeStrand()+". Ignore start: "+aln.getBasesToIgnoreStart()+" Ignore end: "+aln.getBasesToIgnoreEnd());
+			//if(position==posPrint) System.out.println("getAlleleCalls. Allele call: "+alleleCall+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Read name: "+aln.getReadName()+". CIGAR: "+aln.getCigarString()+" refSpan: "+referenceSpan+" negativeStrand: "+aln.isNegativeStrand()+". Ignore start: "+aln.getBasesToIgnoreStart()+" Ignore end: "+aln.getBasesToIgnoreEnd());
+			if(position==posPrint) System.out.println("getAlleleCalls. Allele call: "+alleleCall+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Read name: "+aln.getReadName()+" refSpan: "+referenceSpan+" negativeStrand: "+aln.isNegativeStrand());
 			if(alleleCall == null) continue;
 			String alnQS = ""+aln.getBaseQualityScore(position);
 			if(referenceSpan > 1) {
@@ -140,7 +141,8 @@ public class PileupRecord {
 				if(alleleCall==null) continue;
 				alnQS = aln.getBaseQualityScores(position, lastBase);
 			} else if (alleleCall.length()>1) continue;
-			if(position==posPrint) System.out.println("getAlleleCalls. With span: "+referenceSpan+". Allele call: "+alleleCall+". Quality score: "+alnQS+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Read name: "+aln.getReadName()+". CIGAR: "+aln.getCigarString()+" negativeStrand: "+aln.isNegativeStrand()+". Ignore start: "+aln.getBasesToIgnoreStart()+" Ignore end: "+aln.getBasesToIgnoreEnd()+" STR: "+str+" read group: "+aln.getReadGroup());
+			//if(position==posPrint) System.out.println("getAlleleCalls. With span: "+referenceSpan+". Allele call: "+alleleCall+". Quality score: "+alnQS+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Read name: "+aln.getReadName()+". CIGAR: "+aln.getCigarString()+" negativeStrand: "+aln.isNegativeStrand()+". Ignore start: "+aln.getBasesToIgnoreStart()+" Ignore end: "+aln.getBasesToIgnoreEnd()+" STR: "+str+" read group: "+aln.getReadGroup());
+			if(position==posPrint) System.out.println("getAlleleCalls. With span: "+referenceSpan+". Allele call: "+alleleCall+". Quality score: "+alnQS+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Read name: "+aln.getReadName()+" negativeStrand: "+aln.isNegativeStrand()+" STR: "+str+" read group: "+aln.getReadGroup());
 			PileupAlleleCall call = new PileupAlleleCall(alleleCall.toString(), alnQS);
 			call.setReadGroup(aln.getReadGroup());
 			call.setNegativeStrand(aln.isNegativeStrand());

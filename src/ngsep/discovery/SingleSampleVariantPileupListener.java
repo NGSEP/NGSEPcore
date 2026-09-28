@@ -224,7 +224,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		}
 		if(pileup.getPosition()==posPrint && calledVar!=null) System.out.println("New candidate variant at "+calledVar.getSequenceName()+":"+calledVar.getFirst()+". Type: "+calledVar.getType()+" undecided: "+calledVar.isUndecided()+" homoref: "+calledVar.isHomozygousReference()+" quality: "+calledVar.getGenotypeQuality());
 		//Ignore call if it is not variant with enough quality. To change if the genotype all function is brought back
-		if(calledVar!=null && (calledVar.isUndecided() || calledVar.isHomozygousReference() || minQuality>calledVar.getGenotypeQuality())) calledVar = null;
+		if(calledVar!=null && !passFiltersIndel(calledVar)) calledVar = null;
 		if(calledVar != null) {
 			calledVar.setSampleId(sample.getId());
 			calledVar.updateAllelesCopyNumberFromCounts(sample.getNormalPloidy());
@@ -264,8 +264,8 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder(pileup.getSequenceName(),pileup.getPosition());
 		String [] alleles =  acBuilder.clusterAlleleCalls(pileup, calls, referenceAllele, maxBaseQS);
 		CalledGenomicVariant calledVar = discoverIndel(pileup, alleles, calls); 
-		//Ignore call if it is not variant with enough quality
-		if(calledVar!=null && (calledVar.isUndecided() || calledVar.isHomozygousReference() || minQuality>calledVar.getGenotypeQuality())) calledVar = null;
+		//Ignore call if it is not variant with enough information to reject the reference allele
+		if(calledVar!=null && !passFiltersIndel(calledVar)) calledVar = null;
 		if(!pileup.isInputSTR() && calledVar==null) {
 			if (pileup.isNewSTR()) {
 				pileup.setSTR(false);
@@ -275,6 +275,19 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 			calledVar = discoverSNV(pileup, referenceAllele.charAt(0));
 		}
 		return calledVar;
+	}
+	
+	private boolean passFiltersIndel(CalledGenomicVariant calledVar) {
+		if(calledVar.isUndecided()) return false;
+		if(calledVar.isHomozygousReference()) return false;
+		boolean checkQuality = calledVar.getLast()-calledVar.getFirst()<5;
+		
+		byte [] calledAlleles = calledVar.getIndexesCalledAlleles();
+		for(int i=0;i<calledAlleles.length && !checkQuality;i++) {
+			if(calledAlleles[i]==0) checkQuality=true;
+		}
+		if(checkQuality && calledVar.getGenotypeQuality()<minQuality) return false;
+		return true;
 	}
 	
 	private CalledGenomicVariant discoverIndel(PileupRecord pileup, String [] alleles, List<PileupAlleleCall> calls) {

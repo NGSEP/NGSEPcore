@@ -94,6 +94,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 	private String knownSTRsFile=null;
 	private short normalPloidy = DEF_PLOIDY;
 	private boolean printSamplePloidy = false;
+	private Platform platform = null;
 	private String sampleId = DEF_SAMPLE_ID;
 	private String knownSVsFile=null;
 	private long inputGenomeSize = 0;
@@ -198,6 +199,17 @@ public class SingleSampleVariantsDetector implements PileupListener {
 	}
 	public void setPrintSamplePloidy(Boolean printSamplePloidy) {
 		this.setPrintSamplePloidy(printSamplePloidy.booleanValue());
+	}
+	
+	public Platform getPlatform() {
+		return platform;
+	}
+	public void setPlatform(Platform platform) {
+		this.platform = platform;
+	}
+	
+	public void setPlatform(String value) {
+		setPlatform(Platform.getPlatform(value));
 	}
 	
 	/**
@@ -933,11 +945,14 @@ public class SingleSampleVariantsDetector implements PileupListener {
 		header.addSample(s, printSamplePloidy);
 		
 		generator.setRealignIndels(true);
-		//Look for platform in the input file
-		try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(inputFile)) {
-			Platform platform = reader.getUniquePlatform();
-			if(platform!=null && platform == Platform.ONT) generator.setMinPropSupportIndelCalls(0.4/normalPloidy);
+		Platform pl = platform;
+		if(pl==null) {
+			//Look for platform in the input file
+			try (ReadAlignmentFileReader reader = new ReadAlignmentFileReader(inputFile)) {
+				pl = reader.getUniquePlatform();
+			}
 		}
+		if(pl!=null && pl == Platform.ONT) generator.setMinPropSupportIndelCalls(0.4/normalPloidy);
 		varListener.clear();
 		varListener.setGenome(genome);
 		varListener.setSample(s);

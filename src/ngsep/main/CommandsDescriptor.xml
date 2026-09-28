@@ -1,4 +1,4 @@
-<software name="NGSEP" version="5.1.1" date="05-06-2026" jar="NGSEPcore">
+<software name="NGSEP" version="5.2.0" date="15-12-2026" jar="NGSEPcore">
 <title>Next Generation Sequencing Experience Platform</title>
 <url>http://sourceforge.net/projects/ngsep/files/Library/</url>
 
@@ -711,6 +711,9 @@ Ploidy of the sample.
 Print id and ploidy of the sample in the VCF header.
 The header generated with this option is not a standard VCF header.
 However, it helps NGSEP to keep track of the ploidy of each sample through downstream analyses.
+</option>
+<option id="platform" type="STRING" attribute="platform">
+Platform used to sequence the reads. This option superseeds the information in the BAM header.
 </option>
 <option id="minMQ" type="INT" attribute="minMQ" defaultConstant="DEF_MIN_MQ">
 Minimum mapping quality to call an alignment unique.
