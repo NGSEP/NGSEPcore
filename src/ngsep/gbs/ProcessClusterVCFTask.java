@@ -103,6 +103,7 @@ public class ProcessClusterVCFTask extends Thread {
 		int clusterId = readCluster.getClusterNumber();
 		readCluster.buildAlignment();
 		byte ignore5 = parent.getBasesToIgnore5P();
+		//TODO: Enforce ignore bp in the 3' end
 		byte ignore3 = parent.getBasesToIgnore3P();
 		String consensus = readCluster.getConsensusSequence().toUpperCase();
 		int consensusLength = consensus.length()-ignore5;
@@ -129,8 +130,6 @@ public class ProcessClusterVCFTask extends Thread {
 		for(int i=ignore5+1; i<=consensusLength; i++) {
 			PileupRecord clusterPileUp = new PileupRecord(referenceId, i);
 			for(ReadAlignment readAlgn:readAlignments) {
-				readAlgn.setBasesToIgnore5P(ignore5);
-				readAlgn.setBasesToIgnore3P(ignore3);
 				clusterPileUp.addAlignment(readAlgn);
 			}
 			

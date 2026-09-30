@@ -27,13 +27,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 
 import ngsep.main.io.ConcatGZIPInputStream;
 import ngsep.math.PhredScoreHelper;
 import ngsep.sequences.DNAMaskedSequence;
+import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.RawRead;
 
 /**
@@ -119,6 +122,7 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
 		if(minAverageQuality<0) throw new IllegalArgumentException("Min average quality can not be negative");
 		this.minAverageQuality = minAverageQuality;
 	}
+	 
 	/**
 	 * @return Class datatype for sequences to load
 	 */
@@ -152,6 +156,19 @@ public class FastqFileReader implements Iterable<RawRead>,Closeable  {
         }
         currentIterator = new FastqFileIterator();
 		return currentIterator;
+	}
+	
+	public static List<QualifiedSequence> loadDefaultFastq(String filename) throws IOException {
+		List<QualifiedSequence> sequences = new ArrayList<>();
+		try (FastqFileReader reader = new FastqFileReader(filename)) {
+			Iterator<RawRead> it = reader.iterator();
+			while (it.hasNext()) {
+				RawRead read = it.next();
+				CharSequence characters = read.getCharacters();
+				sequences.add(new QualifiedSequence(read.getName(), characters));
+			}
+		}
+		return sequences;
 	}
 	
 	private void init (InputStream stream, File file) throws IOException {

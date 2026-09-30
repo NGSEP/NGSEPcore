@@ -23,9 +23,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
@@ -114,13 +111,6 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 		return applyVariants(rawConsensus, variants);
 	}
 
-	/*private boolean containsLargeIndels(ReadAlignment alnRead) {
-		Map<Integer,GenomicVariant> indelCalls = alnRead.getIndelCalls();
-		if(indelCalls==null) return false;
-		for(GenomicVariant call:indelCalls.values()) if(call.length()>10) return true;
-		return false;
-	}*/
-
 	public void printAllOverlappingSeqs(AssemblyGraph graph, List<AssemblyEdge> path, int pathPos, AssemblyVertex vertexPreviousEdge) {
 		System.out.println("Vertex to check: "+vertexPreviousEdge);
 		for(int j = pathPos; j < path.size(); j++) {
@@ -136,28 +126,16 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 	
 
 	private void correctSNVErrors(String sequenceName, StringBuilder consensus, List<ReadAlignment> alignments, List<CalledGenomicVariant> variants) {
-		
-		List<SimpleSNVErrorCorrectorPileupListener> callers = new ArrayList<>();
-		for(int i=0;i<numThreads;i++) {
-			SimpleSNVErrorCorrectorPileupListener snvsCorrectorListener = new SimpleSNVErrorCorrectorPileupListener(consensus, variants);
-			callers.add(snvsCorrectorListener);
-		}
+		SimpleSNVErrorCorrectorPileupListener errorCorrector = new SimpleSNVErrorCorrectorPileupListener(consensus);
 		QualifiedSequenceList metadata = new QualifiedSequenceList();
 		metadata.add(new QualifiedSequence(sequenceName,consensus.length()));
-		List<AlignmentsPileupGenerator> generators = HaplotypeReadsClusterCalculator.createGenerators(callers, metadata, numThreads,log );
-		ThreadPoolExecutor pool = new ThreadPoolExecutor(numThreads, numThreads, consensus.length(), TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-		try {
-			for(AlignmentsPileupGenerator generator:generators) {
-				pool.execute(()->generator.processAlignments(alignments));
-			}
-			pool.shutdown();
-	    	pool.awaitTermination(consensus.length(), TimeUnit.SECONDS);
-	    	if(!pool.isShutdown()) {
-				throw new InterruptedException("The ThreadPoolExecutor was not shutdown after an await Termination call");
-			}
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
+		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
+		generator.setLog(log);
+		generator.setSequencesMetadata(metadata);
+		generator.setMaxAlnsPerStartPos(0);
+		generator.addListener(errorCorrector);
+		generator.setNumThreads(numThreads);
+		generator.processAlignments(alignments);
 	}
 
 	private CharSequence applyVariants(StringBuilder consensus, List<CalledGenomicVariant> variants) {
@@ -193,25 +171,16 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 class SimpleSNVErrorCorrectorPileupListener implements PileupListener {
 
 	private StringBuilder consensus;
-	private List<CalledGenomicVariant> indelRegions;
-	private int nextIndelPos = 0;
 
-	public SimpleSNVErrorCorrectorPileupListener(StringBuilder consensus, List<CalledGenomicVariant> indelRegions) {
+	public SimpleSNVErrorCorrectorPileupListener(StringBuilder consensus) {
 		super();
 		this.consensus = consensus;
-		this.indelRegions = indelRegions;
 	}
 	
 	@Override
 	public void onPileup(PileupRecord pileup) {
 		int pos = pileup.getPosition();
-		//Check if pileup is located within an indel region
-		while(nextIndelPos<indelRegions.size()) {
-			CalledGenomicVariant region = indelRegions.get(nextIndelPos);
-			if(region.getFirst()<=pos && pos<=region.getLast()) return;
-			else if (pos<region.getFirst()) break;
-			nextIndelPos++;
-		}
+		
 		List<ReadAlignment> alns = pileup.getAlignments();
 		//Index alignments per nucleotide call
 		int n = DNASequence.BASES_STRING.length();
@@ -235,6 +204,7 @@ class SimpleSNVErrorCorrectorPileupListener implements PileupListener {
 		}
 		int maxIdx = NumberArrays.getIndexMaximum(acgtCounts);
 		int maxCount = acgtCounts[maxIdx];
+		if (maxCount<10) return;
 		char maxBP = DNASequence.BASES_STRING.charAt(maxIdx);
 		int consensusPos = pileup.getPosition()-1;
 		char refBase = consensus.charAt(consensusPos);
@@ -242,8 +212,7 @@ class SimpleSNVErrorCorrectorPileupListener implements PileupListener {
 		int refCount = (refIdx>=0?acgtCounts[refIdx]:0);
 		if(maxIdx!=refIdx && maxCount>refCount) {
 			consensus.setCharAt(consensusPos, maxBP);
-		} 
-		if (maxCount<10) return;
+		}
 	}
 
 	@Override

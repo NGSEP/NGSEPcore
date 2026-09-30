@@ -479,11 +479,10 @@ public class IndelRealignerPileupListener implements PileupListener {
 			if(trimStart) {
 				int ignoreBP = eventLast-alnFirst+1;
 				ignoreBP+=aln.getSoftClipStart();
-				byte bpToIgnoreStart = (byte)Math.max(aln.getBasesToIgnoreStart(), ignoreBP);
+				//TODO: Enforce bp to ignore
 				
 				//if(bpToIgnoreStart>10)System.err.println("WARN: Ignoring "+bpToIgnoreStart+" base pairs at the start of alignment of read "+aln.getSAMRecord().getReadName()+" at "+aln.getReferenceName()+":"+aln.getAlignmentStart()+ " Current CIGAR: "+aln.getSAMRecord().getCigarString()+" indel alns: "+numIndelAlns+" non indel alns: "+alns.size()+" event first: "+eventFirst+" event last: "+eventLast);
-				aln.setBasesToIgnoreStart(bpToIgnoreStart);
-				if(eventFirst == posPrint) System.out.println("IndelRealigner. Trimmed "+bpToIgnoreStart+" at the start of alignment with coordinates: "+alnFirst+"-"+alnLast);
+				if(eventFirst == posPrint) System.out.println("IndelRealigner. Trimmed "+ignoreBP+" at the start of alignment with coordinates: "+alnFirst+"-"+alnLast);
 			}
 			
 			boolean trimEnd = alnLast-eventLast<bpForGoodRefAln && !hasIndelCallsAfter;
@@ -521,10 +520,10 @@ public class IndelRealignerPileupListener implements PileupListener {
 			if(trimEnd) {
 				int ignoreBP = alnLast-eventFirst+1;
 				ignoreBP+=aln.getSoftClipEnd();
-				byte bpToIgnoreEnd = (byte)Math.max(aln.getBasesToIgnoreEnd(), ignoreBP);
+				//TODO: Enforce bp to ignore
 				//if(bpToIgnoreEnd>10)System.err.println("WARN: Ignoring "+bpToIgnoreEnd+" base pairs at the end of alignment of read "+aln.getSAMRecord().getReadName()+" at "+aln.getReferenceName()+":"+aln.getAlignmentStart()+ " Current CIGAR: "+aln.getSAMRecord().getCigarString()+" indel alns: "+numIndelAlns+" non indel alns: "+alns.size()+" event first: "+eventFirst+" event last: "+eventLast);
-				aln.setBasesToIgnoreEnd(bpToIgnoreEnd);
-				if(eventFirst == posPrint) System.out.println("IndelRealigner. Trimmed "+bpToIgnoreEnd+" at the end of alignment with coordinates: "+alnFirst+"-"+alnLast);
+				
+				if(eventFirst == posPrint) System.out.println("IndelRealigner. Trimmed "+ignoreBP+" at the end of alignment with coordinates: "+alnFirst+"-"+alnLast);
 			}
 		}
 	}

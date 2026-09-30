@@ -118,11 +118,6 @@ public class ReadAlignment implements GenomicRegion {
 	private byte [] qualityScores=null;
 	private int readNumber;
 	
-	//Attributes to ignore bases
-	private byte basesToIgnoreCloseToIndel = 2;
-	private short basesToIgnoreStart = 0;
-	private short basesToIgnoreEnd = 0;
-	
 	//Optional information stored
 	private String readGroup = DEF_READ_GROUP;
 	private Map<String,Object> unprocessedOptionalInfo =null;
@@ -621,90 +616,6 @@ public class ReadAlignment implements GenomicRegion {
 	}
 	
 	/**
-	 * Changes the basepairs to ignore close to an indel event
-	 * @param basesToIgnoreCloseToIndel new number of bases to ignore
-	 */
-	public void setBasesToIgnoreCloseToIndel(byte basesToIgnoreCloseToIndel) {
-		if(basesToIgnoreCloseToIndel<1) throw new IllegalArgumentException("Bases to ignore close to indel must be at least 1");
-		if(this.basesToIgnoreCloseToIndel != basesToIgnoreCloseToIndel) {
-			this.basesToIgnoreCloseToIndel = basesToIgnoreCloseToIndel;
-			updateAlleleCallsInfo();
-		}	
-	}
-	
-	/**
-	 * Changes the base pairs to ignore at the 5 prime end of this read
-	 * @param basesToIgnore5P new number of base pairs to ignore
-	 */
-	public void setBasesToIgnore5P(short basesToIgnore5P) {
-		boolean changed = false; 
-		if(isNegativeStrand()) {
-			if (this.basesToIgnoreEnd != basesToIgnore5P) {
-				this.basesToIgnoreEnd = basesToIgnore5P;
-				changed = true;
-			}
-		}
-		else if (this.basesToIgnoreStart != basesToIgnore5P) {
-			this.basesToIgnoreStart = basesToIgnore5P;
-			changed = true;
-		}
-		if(changed) updateAlleleCallsInfo();
-	}
-
-	/**
-	 * Changes the base pairs to ignore at the 3 prime end of this read
-	 * @param basesToIgnore3P new number of base pairs to ignore
-	 */
-	public void setBasesToIgnore3P(short basesToIgnore3P) {
-		boolean changed = false;
-		if(isNegativeStrand()) {
-			if(this.basesToIgnoreStart != basesToIgnore3P) {
-				this.basesToIgnoreStart = basesToIgnore3P;
-				changed = true;
-			}		
-		} else if(this.basesToIgnoreEnd != basesToIgnore3P) {
-			this.basesToIgnoreEnd = basesToIgnore3P;
-			changed = true;
-		}	
-		if(changed) updateAlleleCallsInfo();
-	}
-	
-	/**
-	 * Provides the base pairs to ignore at the start of this alignment
-	 * @return short basePairs to ignore
-	 */
-	public short getBasesToIgnoreStart() {
-		return basesToIgnoreStart;
-	}
-	/**
-	 * Changes the base pairs to ignore at the start of this alignment
-	 * @param basesToIgnoreStart new number of base pairs to ignore
-	 */
-	public void setBasesToIgnoreStart(short basesToIgnoreStart) {
-		if(this.basesToIgnoreStart != basesToIgnoreStart) {
-			this.basesToIgnoreStart = basesToIgnoreStart;
-			updateAlleleCallsInfo();
-		}
-	}
-
-	/**
-	 * Provides the base pairs to ignore at the end of the alignment
-	 * @return short base pairs to ignore
-	 */
-	public short getBasesToIgnoreEnd() {
-		return basesToIgnoreEnd;
-	}
-	/**
-	 * Changes the base pairs to ignore at the end of this alignment
-	 * @param basesToIgnoreEnd new number of base pairs to ignore
-	 */
-	public void setBasesToIgnoreEnd(short basesToIgnoreEnd) {
-		if(this.basesToIgnoreEnd != basesToIgnoreEnd) {
-			this.basesToIgnoreEnd = basesToIgnoreEnd;
-			updateAlleleCallsInfo();
-		}	
-	}
-	/**
 	 * Provides the read group of this read
 	 * @return String read group
 	 */
@@ -813,64 +724,48 @@ public class ReadAlignment implements GenomicRegion {
 		Arrays.fill(alleleCallLength, (short)0);
 		indelCalls = null;
 		indelStartsByReadPos = null;
-		boolean previousIsIndel=false;
 		for(int i=0;i<alignment.length;i++) {
 			int length = getOperationLength(alignment[i]);
-			byte operator = getOperator(alignment[i]);
 			boolean cRef = consumesReferenceBases(alignment[i]);
 			boolean cRead = consumesReadBases(alignment[i]);
 			byte nextOperator = -1;
 			int nextOpLen = 0;
 			boolean nextIsIndel = false;
-			int nextReadConsumption = 0;
+			
 			if(i<alignment.length-1) {
 				nextOperator = getOperator(alignment[i+1]);
 				nextOpLen = getOperationLength(alignment[i+1]);
 				nextIsIndel = isIndel(nextOperator);
-				nextReadConsumption = consumesReadBases(nextOperator)?nextOpLen:0;
 			}
 			if(cRef) {
 				if(cRead) {
 					//Fill pileups with matches or mismatches. Check in the last position if an indel is coming to call it 
 					for(int j=0;j<length;j++) {
 						//Skip bases too close to the start
-						boolean skip = currentReadPos < basesToIgnoreStart;
-						//Skip bases close to the end
-						skip = skip || (readLength - currentReadPos) <= basesToIgnoreEnd;
-						//Skip bases right after the previous indel event
-						skip = skip || previousIsIndel && j<basesToIgnoreCloseToIndel;
-						//Skip bases before the next indel event
-						skip = skip || (nextIsIndel && j<length-1 && j>=length-basesToIgnoreCloseToIndel);
-						//Skip the the indel itself if too close to the end of the read
-						skip = skip || (nextIsIndel && j==length-1 && (currentReadPos < basesToIgnoreCloseToIndel || readLength - currentReadPos - nextReadConsumption < basesToIgnoreCloseToIndel));
-						//Skip the indel if the end falls into the bases to ignore
-						int readPosAfterIndel = currentReadPos + nextReadConsumption + 1;
-						skip = skip || (nextIsIndel && j==length-1 && (readLength - readPosAfterIndel < basesToIgnoreEnd));
 						//System.out.println("Read id: "+aln.getReadName()+". Read start: "+aln.getAlignmentStart()+". Read pos: "+readPos+ " ReferencePos: "+referencePos+" skip: "+skip+" IgnoreStart: "+basesToIgnoreStart+" IgnoreEnd: "+basesToIgnoreEnd+" Reversed: "+aln.getReadNegativeStrandFlag()+" call "+read.charAt(readPos)+" CIGAR: "+aln.getCigarString());
-						if(!skip) {
-							if (j==length-1 && nextIsIndel) {
-								int refLast = currentRefPos+1;
-								if(nextOperator==ALIGNMENT_INSERTION) {
-									//Process insertion call. TODO: Verify that nextOpLen < 2E15
-									alleleCallLength[currentReadPos] = (short) (nextOpLen+2);
-								} else {
-									//Process deletion call
-									alleleCallLength[currentReadPos] = (short)2;
-									refLast += nextOpLen;
-								}
-								if(indelCalls==null) {
-									indelCalls = new TreeMap<Integer,GenomicVariant>();
-									indelStartsByReadPos = new TreeMap<Integer, Integer>();
-								}
-								GenomicVariantImpl indel = new GenomicVariantImpl(sequenceName, currentRefPos, refLast, GenomicVariant.TYPE_INDEL);
-								indel.setLength(nextOpLen);
-								indelCalls.put(currentRefPos, indel);
-								indelStartsByReadPos.put(currentReadPos, currentRefPos);
+						if (j==length-1 && nextIsIndel) {
+							int refLast = currentRefPos+1;
+							if(nextOperator==ALIGNMENT_INSERTION) {
+								//Process insertion call. TODO: Verify that nextOpLen < 2E15
+								alleleCallLength[currentReadPos] = (short) (nextOpLen+2);
 							} else {
-								//Process match or mismatch call
-								alleleCallLength[currentReadPos] = (short)1;
-							} 
-						}
+								//Process deletion call
+								alleleCallLength[currentReadPos] = (short)2;
+								refLast += nextOpLen;
+							}
+							if(indelCalls==null) {
+								indelCalls = new TreeMap<Integer,GenomicVariant>();
+								indelStartsByReadPos = new TreeMap<Integer, Integer>();
+							}
+							GenomicVariantImpl indel = new GenomicVariantImpl(sequenceName, currentRefPos, refLast, GenomicVariant.TYPE_INDEL);
+							indel.setLength(nextOpLen);
+							indelCalls.put(currentRefPos, indel);
+							indelStartsByReadPos.put(currentReadPos, currentRefPos);
+						} else {
+							//Process match or mismatch call
+							alleleCallLength[currentReadPos] = (short)1;
+						} 
+						
 						currentRefPos++;
 						currentReadPos++;
 					}
@@ -880,7 +775,6 @@ public class ReadAlignment implements GenomicRegion {
 			} else if(cRead) {
 				currentReadPos+=length;
 			}
-			previousIsIndel = isIndel(operator);
 		}
 		//throw new RuntimeException("Called method to update allele calls");
 	}
@@ -1064,7 +958,6 @@ public class ReadAlignment implements GenomicRegion {
 		int readFirst = getAlignedReadPosition(referenceFirst);
 		int readLast = getAlignedReadPosition(referenceLast);
 		if(readFirst<0 || readLast<0 || readLast < readFirst) return null;
-		if(withinIgnoreRegions(readFirst, readLast)) return null;
 		return readCharacters.subSequence(readFirst, readLast+1);
 	}
 	/**
@@ -1088,16 +981,12 @@ public class ReadAlignment implements GenomicRegion {
 		int readFirst = getAlignedReadPosition(referenceFirst);
 		int readLast = getAlignedReadPosition(referenceLast);
 		if(readFirst<0 || readLast<0  || readLast < readFirst) return null;
-		if(withinIgnoreRegions(readFirst, readLast)) return null;
 		if(qualityScores == null) return RawRead.generateFixedQSString('+', readLast-readFirst+1);
 		char [] qs = new char[readLast-readFirst+1];
 		for(int i=0;i<qs.length;i++) {
 			qs[i] = (char)qualityScores[readFirst+i];
 		}
 		return new String(qs);
-	}
-	private boolean withinIgnoreRegions (int readFirst, int readLast) {
-		return readFirst<basesToIgnoreStart || readLength - readLast <= basesToIgnoreEnd;
 	}
 	/**
 	 * Returns start sites in this alignment for indel events

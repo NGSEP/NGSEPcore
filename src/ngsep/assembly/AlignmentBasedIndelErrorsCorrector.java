@@ -31,6 +31,7 @@ import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.ReadAlignment.Platform;
+import ngsep.assembly.io.AssemblyGraphFileHandler;
 import ngsep.alignments.ReadsAligner;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionPositionComparator;
@@ -40,6 +41,7 @@ import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
 import ngsep.sequences.RawRead;
+import ngsep.sequences.io.FastqFileReader;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.GenomicVariant;
 
@@ -48,6 +50,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 	private Logger log = Logger.getAnonymousLogger();
 	private LayoutBuilderKruskalPath pathsFinder;
 	private AssemblySequencesRelationshipFilter filter;
+	private int maxIndelLengthCorrection = 100;
 	private int numThreads=1;
 	private static Runtime runtime = Runtime.getRuntime();
 	
@@ -119,6 +122,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 				List<ReadAlignment> selectedAlns = new ArrayList<ReadAlignment>(alignments.size());
 				for(ReadAlignment aln:alignments) {
 					int readId = aln.getReadNumber();
+					//if(pathId==1 && readId <100) System.out.println("AlignmentBasedIndelErrorsCorrector. Next read id: "+readId+". Next aln: "+aln);
 					if(sequencePaths[readId]==0) {
 						sequencePaths[readId] = pathId;
 						aln.setSequenceName(sequenceName);
@@ -129,10 +133,10 @@ public class AlignmentBasedIndelErrorsCorrector {
 				selectedPathsMap.put(pathId, path);
 				selectedPathsQS.add(new QualifiedSequence(sequenceName,path.getConsensus()));
 				long usedMemory = (runtime.totalMemory()-runtime.freeMemory())/1000000;
-				log.info("AssemblyPathReadsAligner. Correcting errors for reads aligned to path: "+path.getPathId()+" length: "+path.getPathLength()+" Memory (Mbp): "+usedMemory);
+				log.info("AlignmentBasedIndelErrorsCorrector. Correcting errors for reads aligned to path: "+path.getPathId()+" length: "+path.getPathLength()+" Memory (Mbp): "+usedMemory);
 				List<CalledGenomicVariant> pathIndels = aligner.callIndels(path.getConsensus(), selectedAlns, 2);
 				usedMemory = (runtime.totalMemory()-runtime.freeMemory())/1000000;
-				log.info("AssemblyPathReadsAligner. Called indels in path: "+path.getPathId()+": "+pathIndels.size()+" Memory (Mbp): "+usedMemory);
+				log.info("AlignmentBasedIndelErrorsCorrector. Called indels in path: "+path.getPathId()+": "+pathIndels.size()+" Memory (Mbp): "+usedMemory);
 				Collections.sort(pathIndels,GenomicRegionPositionComparator.getInstance());
 				selectedPathsCalledIndels.put(pathId,pathIndels);
 				correctErrors(graph, selectedAlns, path, pathIndels, sequencePaths);
@@ -221,12 +225,12 @@ public class AlignmentBasedIndelErrorsCorrector {
 		for(Map.Entry<Integer, GenomicVariant> entry:calls.entrySet()) {
 			int posRead = entry.getKey();
 			GenomicVariant readIndel = entry.getValue();
-			if(readIndel.length()>3) continue;
-			if(posRead>nextPos) {
+			if(readIndel.length()>maxIndelLengthCorrection) continue;
+			if(posRead>=nextPos) {
 				//Apply homozygous indels not called in this alignment
 				for(;firstIndelPos<nI;firstIndelPos++) {
 					CalledGenomicVariant calledIndel = indels.get(firstIndelPos);
-					if(readId == debugIdx) System.out.println("AlignmentBasedErrorCorrection. ReadId: "+readId+" Next active indel: "+calledIndel.getFirst()+" "+calledIndel.getLast()+" ref limits: "+lastRef+" "+readIndel.getFirst()+" read limits: "+nextPos+" "+posRead);
+					if(readId == debugIdx) System.out.println("AlignmentBasedErrorCorrection. ReadId: "+readId+" Next active indel: "+calledIndel.getFirst()+" "+calledIndel.getLast()+" lastRef: "+lastRef+" ref coords: "+readIndel.getFirst()+" "+readIndel.getLast()+" read limits: "+nextPos+" "+posRead+". read indel length: "+readIndel.length());
 					if(calledIndel.getFirst() > lastRef && calledIndel.getLast()<readIndel.getFirst()) {
 						if(calledIndel.isHeterozygous()) continue;
 						if(calledIndel.getAlleles().length<2) System.err.println("Filtered indel with only one allele: "+calledIndel.getFirst()+" "+calledIndel.getLast()+" genotype: "+calledIndel.getCalledAlleles()[0]+" allele: "+calledIndel.getAlleles()[0]+" homoref: "+calledIndel.isHomozygousReference()+" undecided: "+calledIndel.isUndecided());
@@ -238,7 +242,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 							String currentSegment = alignedRead.substring(readPosStartVar,readPosEndVar+1);
 							String correctedAllele = calledIndel.getCalledAlleles()[0];
 							if(Math.abs(currentSegment.length()-correctedAllele.length())>3) continue;
-							//if(readId==debugIdx || currentSegment.length()>30) System.out.println("AlignmentBasedErrorCorrection. Adding called indel for read: "+readId+" spanning "+readPosStartVar+" "+readPosEndVar+" segment: "+currentSegment+" alleles var: "+calledVar.getAlleles()[0]+" "+calledVar.getAlleles()[1]+" called allele: "+correctedAllele);
+							if(readId==debugIdx) System.out.println("AlignmentBasedErrorCorrection. Adding called indel for read: "+readId+" spanning "+readPosStartVar+" "+readPosEndVar+" segment: "+currentSegment+" alleles var: "+calledIndel.getAlleles()[0]+" "+calledIndel.getAlleles()[1]+" called allele: "+correctedAllele);
 							correctedRead.append(alignedRead.substring(nextPos, readPosStartVar));
 							correctedRead.append(correctedAllele);
 							nextPos = readPosEndVar+1;
@@ -247,7 +251,9 @@ public class AlignmentBasedIndelErrorsCorrector {
 						break;
 					}
 				}
-				correctedRead.append(alignedRead.substring(nextPos, posRead+1));
+				String nextSegment = alignedRead.substring(nextPos, posRead+1);
+				if(readId == debugIdx) System.out.println("AlignmentBasedErrorCorrection. Read id: "+readId+" Next segment: "+nextSegment);
+				correctedRead.append(nextSegment);
 			}
 			nextPos = posRead+1;
 			//Correct if indel not called in this region
@@ -266,7 +272,9 @@ public class AlignmentBasedIndelErrorsCorrector {
 					nextPos +=readIndel.length();
 				} else {
 					//Deletion
-					correctedRead.append(pathConsensus.substring(readIndel.getFirst(), readIndel.getLast()-1));
+					String insertedBp = pathConsensus.substring(readIndel.getFirst(), readIndel.getLast()-1);
+					if(readId == debugIdx) System.out.println("AlignmentBasedErrorCorrection. Read id: "+readId+" Correcting deletion at: "+readIndel.getFirst()+" "+readIndel.getLast()+" length "+readIndel.length()+" inserted bp: "+insertedBp);
+					correctedRead.append(insertedBp);
 				}
 			}
 			lastRef = readIndel.getLast();
@@ -370,5 +378,12 @@ public class AlignmentBasedIndelErrorsCorrector {
 		List<CalledGenomicVariant> calledIndelsPath = selectedPathsCalledIndels.get(pathId);
 		String pathConsensus = selectedPathsMap.get(pathId).getConsensus();
 		correctRead(seq, aln, pathConsensus, calledIndelsPath, 0, chimeric);
+	}
+	public static void main(String[] args) throws Exception {
+		AlignmentBasedIndelErrorsCorrector instance = new AlignmentBasedIndelErrorsCorrector();
+		List<QualifiedSequence> sequences = FastqFileReader.loadDefaultFastq(args[0]);
+		Collections.sort(sequences, (l1, l2) -> l2.getLength() - l1.getLength());
+		AssemblyGraph graph = AssemblyGraphFileHandler.load(sequences, args[1]);
+		instance.correctErrors(graph, sequences);
 	}
 }

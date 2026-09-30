@@ -16,6 +16,8 @@ import ngsep.genome.GenomicRegionSpanComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.alignments.LongReadsUngappedSearchHitsClusterAligner;
 import ngsep.alignments.MinimizersUngappedSearchHitsClustersFinder;
+import ngsep.alignments.PairwiseAlignerSimpleGap;
+import ngsep.alignments.PairwiseAlignment;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.ReadAlignment.Platform;
 import ngsep.alignments.ReadAlignmentPositionComparator;
@@ -29,6 +31,7 @@ import ngsep.sequences.DefaultKmersMapImpl;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.KmersExtractor;
 import ngsep.sequences.KmersMap;
+import ngsep.sequences.LimitedSequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.ShortKmerCodesSampler;
 import ngsep.variants.CalledGenomicVariant;
@@ -374,6 +377,7 @@ public class AssemblyPathReadsAligner {
 		List<CalledGenomicVariant> answer=new ArrayList<CalledGenomicVariant>(activeSegments.size());
 		System.out.println("Number of active segments "+activeSegments.size());
 		int firstIdxAln = 0;
+		int debugFirst = 12827;
 		for(GenomicRegion region:activeSegments) {
 			int first = Math.max(1, region.getFirst());
 			int last = Math.min(consensus.length(), region.getLast());
@@ -386,7 +390,9 @@ public class AssemblyPathReadsAligner {
 			String localConsensus = calculateLocalConsensus(first, last, alignments, firstIdxAln, null);
 			String altConsensus = null;
 			if(normalPloidy>1 && localConsensus!=null) altConsensus = calculateLocalConsensus(first, last, alignments, firstIdxAln, localConsensus);
+			if(first == debugFirst) System.out.println("AssemblyPathReadsAligner. Active region. Coords "+first+" "+last+" ref: "+currentConsensus+" localCon: "+localConsensus+" alt: "+altConsensus);
 			CalledGenomicVariant call = buildCall(sequenceName, first, currentConsensus, localConsensus, altConsensus);
+			if(first == debugFirst) System.out.println("AssemblyPathReadsAligner. Active region. Coords "+first+" "+last+" Indel call first "+call.getFirst()+" alleles: "+call.getAlleles()[0]+" "+call.getAlleles()[1]);
 			//TODO: check if it is worth to return homozygous reference calls
 			if(!call.isUndecided() && !call.isHomozygousReference()) answer.add(call);
 		}
@@ -431,6 +437,7 @@ public class AssemblyPathReadsAligner {
 	}
 
 	private String calculateLocalConsensus(int first, int last, List<ReadAlignment> alignments, int firstIdxAln, String consensusAllele) {
+		int debugFirst = -1;
 		Map<Integer,List<String>> alleleCallsByLength = new HashMap<Integer, List<String>>();
 		List<String> allCalls = new ArrayList<String>();
 		int count = 0;
@@ -440,6 +447,7 @@ public class AssemblyPathReadsAligner {
 			CharSequence call = aln.getAlleleCall(first, last);
 			if(call==null) continue;
 			String callStr = call.toString();
+			if(first == debugFirst) System.out.println("AssemblyPathReadsAligner. Coords "+first+" "+last+" ref: "+consensusAllele+" next all: "+callStr+" read: "+aln.getReadName()+" eqCon: "+callStr.equals(consensusAllele)+" currAltcount: "+count);
 			if(consensusAllele!=null && callStr.equals(consensusAllele)) continue;
 			count++;
 			List<String> lengthCalls = alleleCallsByLength.computeIfAbsent(call.length(), (v)->new ArrayList<String>());
@@ -459,8 +467,7 @@ public class AssemblyPathReadsAligner {
 		if(count <10 && maxLength.size()<0.8*count) return null;
 		if(2*maxLength.size()<count) {
 			if(last-first+1>=8) {
-				boolean debug = first ==-1 || first == -2; 
-				if(debug) System.out.println("DeBruijn consensus for active site: "+first +" "+last+" calls: "+allCalls);
+				if(first == debugFirst) System.out.println("DeBruijn consensus for active site: "+first +" "+last+" calls: "+allCalls);
 				String assembly = makeDeBruijnConsensus(last-first+1, allCalls);
 				return assembly;
 			}
@@ -506,19 +513,70 @@ public class AssemblyPathReadsAligner {
 	}
 
 	private CalledGenomicVariant buildCall(String sequenceName, int first, String currentConsensus, String localConsensus, String altConsensus) {
+		boolean debug = first == -1;
+		
 		List<String> alleles = new ArrayList<String>(2);
-		alleles.add(currentConsensus);
-		boolean hetero = altConsensus!=null && !altConsensus.equals(localConsensus);
-		if(localConsensus!=null && !localConsensus.equals(currentConsensus)) alleles.add(localConsensus);
-		if(hetero && !altConsensus.equals(currentConsensus)) {
-			alleles.add(altConsensus);
+		boolean hetero = localConsensus!=null && altConsensus!=null && localConsensus.length()!=altConsensus.length();
+		if(localConsensus!=null && currentConsensus.length()!=localConsensus.length() && currentConsensus.length()<200 && localConsensus.length()<200) {
+			//Shrinking variant to real indel
+			int [] indelCoords = calculateIndelCoords(currentConsensus,localConsensus);
+			if(indelCoords != null && indelCoords[0]>1 && indelCoords[1]<currentConsensus.length()-1) {
+				alleles.add(currentConsensus.substring(indelCoords[0],indelCoords[1]));
+				alleles.add(localConsensus.substring(indelCoords[2],indelCoords[3]));
+				first+=indelCoords[0];
+			}
+		} 
+		if(alleles.size()==0) {
+			alleles.add(currentConsensus);
+			if(localConsensus!=null && !localConsensus.equals(currentConsensus)) alleles.add(localConsensus);
+			if(hetero && !altConsensus.equals(currentConsensus)) {
+				alleles.add(altConsensus);
+			}
 		}
+		
+		if(debug) System.out.println("AssemblyPathReadsAligner. First: "+first+" alleles: "+alleles);
 		GenomicVariantImpl variant = new GenomicVariantImpl(sequenceName, first, alleles);
 		CalledGenomicVariantImpl call;
 		if (hetero) call = new CalledGenomicVariantImpl(variant, CalledGenomicVariant.GENOTYPE_HETERO);
 		else if(alleles.size()==1) call = new CalledGenomicVariantImpl(variant, CalledGenomicVariant.GENOTYPE_HOMOREF);
 		else call = new CalledGenomicVariantImpl(variant, CalledGenomicVariant.GENOTYPE_HOMOALT);
 		return call;
+	}
+	private int[] calculateIndelCoords(String currentConsensus, String localConsensus) {
+		PairwiseAlignerSimpleGap aligner = new PairwiseAlignerSimpleGap();
+		PairwiseAlignment alignment = aligner.calculateAlignment(currentConsensus, localConsensus);
+		return calculateLimitsIndel(alignment.getAlignedSequence1(),alignment.getAlignedSequence2());
+	}
+	private int[] calculateLimitsIndel(String alignedSequence1, String alignedSequence2) {
+		int [] answer = new int[4];
+		boolean foundGap = false;
+		boolean previousGap = false;
+		int j=0;
+		int k=0;
+		for(int i=0;i<alignedSequence1.length();i++) {
+			char c1 = alignedSequence1.charAt(i);
+			char c2 = alignedSequence2.charAt(i);
+			if(c1==LimitedSequence.GAP_CHARACTER || c2 == LimitedSequence.GAP_CHARACTER) {
+				if(i==0 || i==alignedSequence1.length()-1) return null; 
+				if(!foundGap) {
+					answer[0]=j;
+					answer[2]=k;
+					foundGap= true;
+				}
+				previousGap = true;
+			} else if(previousGap) {
+				answer[1]=j;
+				answer[3]=k;
+				previousGap = false;
+			}
+			if(c1!=LimitedSequence.GAP_CHARACTER) j++;
+			if(c2!=LimitedSequence.GAP_CHARACTER) k++;
+		}
+		answer[1]++;
+		answer[3]++;
+		if(!foundGap) return null;
+		if(answer[0]>=answer[1] || answer[2]>=answer[3]) return null;
+		return answer;
 	}
 	private String calculateVariantSegment(ReadAlignment alignment, GenomicVariant indelReadCall, CalledGenomicVariant calledVariant, int normalPloidy) {
 		//Check that indel call is contained

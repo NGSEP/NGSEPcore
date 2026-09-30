@@ -465,8 +465,6 @@ public class AlignmentsPileupGenerator {
 			} else if (maxAlnsPerStartPos<=0 || count<maxAlnsPerStartPos) {
 				alnsPerReadGroup.put(aln.getReadGroup(), count+1);
 			} else continue;
-			aln.setBasesToIgnore5P(basesToIgnore5P);
-			aln.setBasesToIgnore3P(basesToIgnore3P);
 			pendingAlignments.add(aln);
 		}
 		allAlnsPos.clear();
