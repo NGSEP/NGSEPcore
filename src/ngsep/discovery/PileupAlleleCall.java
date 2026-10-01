@@ -19,16 +19,22 @@
  *******************************************************************************/
 package ngsep.discovery;
 
+import ngsep.alignments.ReadAlignment;
+import ngsep.variants.GenomicVariant;
+
 public class PileupAlleleCall {
+	private ReadAlignment alignment;
 	private CharSequence sequence;
 	private String qualityScores;
-	private String readGroup;
-	private boolean negativeStrand = false;
+	private int startAlignedRead;
+	private GenomicVariant closeIndel;
 	
-	public PileupAlleleCall(CharSequence sequence, String qualityScores) {
+	public PileupAlleleCall(ReadAlignment alignment, CharSequence sequence, String qualityScores, int startAlignedRead) {
 		super();
+		this.alignment = alignment;
 		this.sequence = sequence;
 		this.qualityScores = qualityScores;
+		this.startAlignedRead = startAlignedRead;
 	}
 	
 	/**
@@ -49,30 +55,37 @@ public class PileupAlleleCall {
 		return qualityScores;
 	}
 	
+	public int getStartAlignedRead() {
+		return startAlignedRead;
+	}
+
 	/**
 	 * @return the readGroup
 	 */
 	public String getReadGroup() {
-		return readGroup;
-	}
-	/**
-	 * @param readGroup the readGroup to set
-	 */
-	public void setReadGroup(String readGroup) {
-		this.readGroup = readGroup;
+		return alignment.getReadGroup();
 	}
 
 	/**
 	 * @return the negativeStrand
 	 */
 	public boolean isNegativeStrand() {
-		return negativeStrand;
+		return alignment.isNegativeStrand();
+	}
+	
+	public GenomicVariant getCloseIndel() {
+		return closeIndel;
 	}
 
-	/**
-	 * @param negativeStrand the negativeStrand to set
-	 */
-	public void setNegativeStrand(boolean negativeStrand) {
-		this.negativeStrand = negativeStrand;
+	public void setCloseIndel(GenomicVariant closeIndel) {
+		this.closeIndel = closeIndel;
+	}
+
+	public int length() {
+		return sequence.length();
+	}
+	
+	public int getReadLength() {
+		return alignment.getReadLength();
 	}
 }

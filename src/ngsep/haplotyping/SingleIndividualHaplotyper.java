@@ -14,6 +14,7 @@ import java.util.Iterator;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.io.ReadAlignmentFileReader;
 import ngsep.alignments.io.ReadAlignmentFileWriter;
+import ngsep.discovery.PileupAlleleCall;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.ReferenceGenome;
 import ngsep.main.CommandsDescriptor;
@@ -299,11 +300,8 @@ public class SingleIndividualHaplotyper {
 					break;
 				}
 				String [] alleles = var.getAlleles();
-				CharSequence callS = aln.getAlleleCall(var.getFirst(), var.getLast());
-				String call = null;
-				if(callS!=null) {
-					call = callS.toString();
-				}
+				PileupAlleleCall pileupCall = aln.getAlleleCall(var.getFirst(), var.getLast());
+				String call = pileupCall!=null?pileupCall.getAlleleString():null;
 				if(alleles[0].equals(call)) {
 					calls.add(CalledGenomicVariant.ALLELE_REFERENCE);
 					realCalls++;

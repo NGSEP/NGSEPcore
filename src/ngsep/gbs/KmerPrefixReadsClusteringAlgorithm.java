@@ -209,14 +209,12 @@ public class KmerPrefixReadsClusteringAlgorithm {
 
 	/**
 	 * @return
-	 * @see ngsep.discovery.AlignmentsPileupGenerator#getBasesToIgnore5P()
 	 */
 	public byte getBasesToIgnore5P() {
 		return basesToIgnore5P;
 	}
 	/**
 	 * @param basesToIgnore5P
-	 * @see ngsep.discovery.AlignmentsPileupGenerator#setBasesToIgnore5P(byte)
 	 */
 	public void setBasesToIgnore5P(byte basesToIgnore5P) {
 		this.basesToIgnore5P = basesToIgnore5P;
@@ -226,14 +224,12 @@ public class KmerPrefixReadsClusteringAlgorithm {
 	}
 	/**
 	 * @return
-	 * @see ngsep.discovery.AlignmentsPileupGenerator#getBasesToIgnore3P()
 	 */
 	public byte getBasesToIgnore3P() {
 		return basesToIgnore3P;
 	}
 	/**
 	 * @param basesToIgnore3P
-	 * @see ngsep.discovery.AlignmentsPileupGenerator#setBasesToIgnore3P(byte)
 	 */
 	public void setBasesToIgnore3P(byte basesToIgnore3P) {
 		this.basesToIgnore3P = basesToIgnore3P;

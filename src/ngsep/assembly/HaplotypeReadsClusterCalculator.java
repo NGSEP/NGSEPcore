@@ -20,7 +20,6 @@
 package ngsep.assembly;
 
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,14 +29,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
-import ngsep.alignments.io.ReadAlignmentFileWriter;
 import ngsep.discovery.AlignmentsPileupGenerator;
+import ngsep.discovery.PileupAlleleCall;
 import ngsep.discovery.PileupListener;
 import ngsep.discovery.PileupRecord;
 import ngsep.genome.GenomicRegion;
@@ -51,7 +47,6 @@ import ngsep.math.NumberArrays;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.sequences.QualifiedSequenceList;
-import ngsep.sequences.io.FastaSequencesHandler;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.CalledSNV;
@@ -331,42 +326,28 @@ public class HaplotypeReadsClusterCalculator {
 		}
 		
 		readDepth/=consensus.length();
-		List<SimpleVariantsDetectorPileupListener> callers = new ArrayList<>();
-		for(int i=0;i<numThreads;i++) {
-			SimpleVariantsDetectorPileupListener varsListener = new SimpleVariantsDetectorPileupListener(consensus);
-			varsListener.setCallIndels(true);
-			callers.add(varsListener);
-		}
+		SimpleVariantsDetectorPileupListener varsListener = new SimpleVariantsDetectorPileupListener(consensus);
+		varsListener.setCallIndels(true);
+		
 		
 		QualifiedSequenceList metadata = new QualifiedSequenceList();
 		metadata.add(new QualifiedSequence(sequenceName,consensus.length()));
-		List<AlignmentsPileupGenerator> generators = createGenerators(callers, metadata, numThreads,log );
-		ThreadPoolExecutor pool = new ThreadPoolExecutor(numThreads, numThreads, consensus.length(), TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-		try {
-			for(AlignmentsPileupGenerator generator:generators) {
-				pool.execute(()->generator.processAlignments(alignments));
-			}
-			pool.shutdown();
-	    	pool.awaitTermination(consensus.length(), TimeUnit.SECONDS);
-	    	if(!pool.isShutdown()) {
-				throw new InterruptedException("The ThreadPoolExecutor was not shutdown after an await Termination call");
-			}
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
+		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
+		generator.setLog(log);
+		generator.setSequencesMetadata(metadata);
+		generator.setMaxAlnsPerStartPos(0);
+		generator.addListener(varsListener);
+		generator.setNumThreads(numThreads);
+		generator.processAlignments(alignments);
 		
-		List<CalledGenomicVariant> allVars = new ArrayList<>();
-		List<CalledGenomicVariant> hetVars = new ArrayList<>();
-		for (SimpleVariantsDetectorPileupListener caller:callers) {
-			List<CalledGenomicVariant> calls = caller.getCalls();
-			if(path.getPathId()==debugIdx) System.out.println("Collecting het calls for path: "+path.getPathId()+" Heterozygous Calls: "+calls.size()+" Limits: "+ (calls.size()>0?calls.get(0).getFirst():0)+" "+(calls.size()>0?calls.get(calls.size()-1).getLast():0));
-			allVars.addAll(calls);
-			for(CalledGenomicVariant call:calls) {
-				if(call.isHeterozygous()) hetVars.add(call);
-			}
-			
+		
+		List<CalledGenomicVariant> calls = varsListener.getCalls();
+		List<CalledGenomicVariant> hetVars = new ArrayList<CalledGenomicVariant>(calls.size());
+		if(path.getPathId()==debugIdx) System.out.println("Collecting het calls for path: "+path.getPathId()+" Heterozygous Calls: "+calls.size()+" Limits: "+ (calls.size()>0?calls.get(0).getFirst():0)+" "+(calls.size()>0?calls.get(calls.size()-1).getLast():0));
+		for(CalledGenomicVariant call:calls) {
+			if(call.isHeterozygous()) hetVars.add(call);
 		}
-		GenomicRegionSortedCollection<GenomicRegion> denseVariantRegions = calculateDenseRegions(path,allVars,consensus.length());
+		GenomicRegionSortedCollection<GenomicRegion> denseVariantRegions = calculateDenseRegions(path, calls,consensus.length());
 		
 		Collections.sort(hetVars,GenomicRegionPositionComparator.getInstance());
 		List<CalledGenomicVariant> filteredVars = new ArrayList<CalledGenomicVariant>();
@@ -427,27 +408,7 @@ public class HaplotypeReadsClusterCalculator {
 		return filteredVars2;
 	}
 
-	public static List<AlignmentsPileupGenerator> createGenerators(List<? extends PileupListener> callers, QualifiedSequenceList metadata, int numThreads, Logger log ) {
-		List<AlignmentsPileupGenerator> generators = new ArrayList<AlignmentsPileupGenerator>();
-		QualifiedSequence contigM = metadata.get(0);
-		int intervalLength = contigM.getLength() / numThreads;
-		int nextStart = 1;
-		int nextEnd = intervalLength+1;
-		for(int i=0;i<numThreads;i++) {
-			AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
-			generator.setLog(log);
-			generator.setSequencesMetadata(metadata);
-			generator.setMaxAlnsPerStartPos(0);
-			generator.addListener(callers.get(i));
-			generator.setQuerySeq(contigM.getName());
-			generator.setQueryFirst(nextStart);
-			if(i<numThreads-1) generator.setQueryLast(nextEnd);
-			generators.add(generator);
-			nextStart+=intervalLength;
-			nextEnd +=intervalLength;
-		}
-		return generators;
-	}
+	
 	
 	private GenomicRegionSortedCollection<GenomicRegion> calculateDenseRegions(AssemblyPath path,  List<CalledGenomicVariant> allVars,int consensusLength) {
 		//100bp windows with overlap 50
@@ -652,10 +613,10 @@ class SimpleVariantsDetectorPileupListener implements PileupListener {
 		String refAlleleIndel = null;
 		int lastRefIndel = -1;
 		for(ReadAlignment aln:alns) {
-			CharSequence alleleCall = aln.getAlleleCall(pos);
+			PileupAlleleCall alleleCall = aln.getAlleleCall(pos);
 			if(pos==idxDebug) System.out.println("SimpleHetVars. Sequence name "+pileup.getSequenceName()+". Next allele: "+alleleCall+" read: "+aln.getReadName());
 			if(alleleCall==null || alleleCall.length()==0) continue;
-			String alleleStr = alleleCall.toString();
+			String alleleStr = alleleCall.getAlleleString();
 			if(alleleStr.length()==1) {
 				//Counts for SNVs
 				char calledBase = alleleStr.charAt(0);

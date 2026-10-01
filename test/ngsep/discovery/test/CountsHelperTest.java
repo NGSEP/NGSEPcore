@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import junit.framework.TestCase;
+import ngsep.alignments.ReadAlignment;
 import ngsep.discovery.CountsHelper;
 import ngsep.discovery.PileupAlleleCall;
 import ngsep.sequences.DNASequence;
@@ -71,14 +72,15 @@ public class CountsHelperTest extends TestCase {
 
 	private List<PileupAlleleCall> createSNVAlleleCalls(int totalCount, int minorCount) {
 		List<PileupAlleleCall> calls = new ArrayList<PileupAlleleCall>();
+		ReadAlignment mockAln = new ReadAlignment(1, 1, 100, 100, 0);
 		int i=0;
 		while(i<totalCount-minorCount) {
-			PileupAlleleCall call = new PileupAlleleCall(DNASequence.BASES_ARRAY[0], "A");
+			PileupAlleleCall call = new PileupAlleleCall(mockAln, DNASequence.BASES_ARRAY[0], "5",0);
 			calls.add(call);
 			i++;
 		}
 		while(i<totalCount) {
-			PileupAlleleCall call = new PileupAlleleCall(DNASequence.BASES_ARRAY[1], "A");
+			PileupAlleleCall call = new PileupAlleleCall(mockAln, DNASequence.BASES_ARRAY[1], "5",0);
 			calls.add(call);
 			i++;
 		}

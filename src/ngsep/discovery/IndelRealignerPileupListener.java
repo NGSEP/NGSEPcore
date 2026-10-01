@@ -533,8 +533,9 @@ public class IndelRealignerPileupListener implements PileupListener {
 		for(ReadAlignment aln:alignments) {
 			GenomicVariant call = aln.getIndelCall(eventFirst);
 			if(call==null) continue;
-			CharSequence allele = aln.getAlleleCall(eventFirst);
-			if(allele==null) continue;
+			PileupAlleleCall alleleCall = aln.getAlleleCall(eventFirst);
+			if(alleleCall==null) continue;
+			CharSequence allele = alleleCall.getAlleleString();
 			allele = allele.subSequence(1, allele.length()-1);
 			if(allele.length()==0) continue;
 			//if(eventFirst==posPrint) System.out.println("Calculating insertion consensus allele. Next insertion allele: "+allele+ " read: "+aln.getReadName());

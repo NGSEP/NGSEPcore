@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 import ngsep.alignments.UngappedSearchHitsCluster;
+import ngsep.discovery.PileupAlleleCall;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.GenomicRegionPositionComparator;
@@ -444,13 +445,13 @@ public class AssemblyPathReadsAligner {
 		for(int i=firstIdxAln;i<alignments.size();i++) {
 			ReadAlignment aln = alignments.get(i);
 			if(aln.getFirst()>last) break;
-			CharSequence call = aln.getAlleleCall(first, last);
-			if(call==null) continue;
-			String callStr = call.toString();
+			PileupAlleleCall pileupCall = aln.getAlleleCall(first, last);
+			if(pileupCall==null) continue;
+			String callStr = pileupCall.getAlleleString();
 			if(first == debugFirst) System.out.println("AssemblyPathReadsAligner. Coords "+first+" "+last+" ref: "+consensusAllele+" next all: "+callStr+" read: "+aln.getReadName()+" eqCon: "+callStr.equals(consensusAllele)+" currAltcount: "+count);
 			if(consensusAllele!=null && callStr.equals(consensusAllele)) continue;
 			count++;
-			List<String> lengthCalls = alleleCallsByLength.computeIfAbsent(call.length(), (v)->new ArrayList<String>());
+			List<String> lengthCalls = alleleCallsByLength.computeIfAbsent(callStr.length(), (v)->new ArrayList<String>());
 			lengthCalls.add(callStr);
 			allCalls.add(callStr);
 		}
@@ -583,7 +584,7 @@ public class AssemblyPathReadsAligner {
 		if(calledVariant.getFirst()>indelReadCall.getFirst()) return null;
 		if(calledVariant.getLast()<indelReadCall.getLast()) return null;
 		//String readName = alignment.getReadName();
-		CharSequence extendedReadCall = alignment.getAlleleCall(calledVariant.getFirst(), calledVariant.getLast());
+		PileupAlleleCall extendedReadCall = alignment.getAlleleCall(calledVariant.getFirst(), calledVariant.getLast());
 		if(extendedReadCall==null) return null;
 		String [] alleles = calledVariant.getAlleles();
 		if(alleles.length<2) return null;
@@ -592,7 +593,7 @@ public class AssemblyPathReadsAligner {
 		if(alleles.length>2) secondAllele = alleles[2];
 		
 		
-		String extendedCallStr = extendedReadCall.toString();
+		String extendedCallStr = extendedReadCall.getAlleleString();
 		//if(readName.equals("ref1M_977918_0")) System.out.println("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" variant coords "+calledVariant.getFirst()+"-"+calledVariant.getLast()+" major allele "+majorAllele);
 		//if(readName.equals("ref1M_977918_0")) System.out.println("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" variant coords "+calledVariant.getFirst()+"-"+calledVariant.getLast()+" secnd allele "+secondAllele);
 		//if(readName.equals("ref1M_977918_0")) System.out.println("CorrectRead. Read: "+readName+" indel coords: "+indelReadCall.getFirst()+"-"+indelReadCall.getLast()+" variant coords "+calledVariant.getFirst()+"-"+calledVariant.getLast()+" extendedcall "+extendedCallStr);

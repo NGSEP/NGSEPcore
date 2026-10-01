@@ -86,6 +86,8 @@ public class MultisampleVariantsDetector implements PileupListener {
 	private boolean callEmbeddedSNVs = false;
 	private double minAlleleDepthFrequency = DEF_MIN_ALLELE_DEPTH_FREQUENCY;
 	private short minQuality = DEF_MIN_QUALITY;
+	private byte basesToIgnore5P = 0;
+	private byte basesToIgnore3P = 0;
 	private byte maxBaseQS = DEF_MAX_BASE_QS;
 	private short normalPloidy = DEF_PLOIDY;
 	private boolean printSamplePloidy = false;
@@ -312,34 +314,30 @@ public class MultisampleVariantsDetector implements PileupListener {
 	}
 	/**
 	 * @return
-	 * @see ngsep.discovery.AlignmentsPileupGenerator#getBasesToIgnore5P()
 	 */
 	public byte getBasesToIgnore5P() {
-		return generator.getBasesToIgnore5P();
+		return basesToIgnore5P;
 	}
 	/**
 	 * @param basesToIgnore5P
-	 * @see ngsep.discovery.AlignmentsPileupGenerator#setBasesToIgnore5P(byte)
 	 */
 	public void setBasesToIgnore5P(byte basesToIgnore5P) {
-		generator.setBasesToIgnore5P(basesToIgnore5P);
+		this.basesToIgnore5P = basesToIgnore5P;
 	}
 	public void setBasesToIgnore5P(String basesToIgnore5P) {
 		setBasesToIgnore5P((byte)OptionValuesDecoder.decode(basesToIgnore5P, Byte.class));
 	}
 	/**
 	 * @return
-	 * @see ngsep.discovery.AlignmentsPileupGenerator#getBasesToIgnore3P()
 	 */
 	public byte getBasesToIgnore3P() {
-		return generator.getBasesToIgnore3P();
+		return basesToIgnore3P;
 	}
 	/**
 	 * @param basesToIgnore3P
-	 * @see ngsep.discovery.AlignmentsPileupGenerator#setBasesToIgnore3P(byte)
 	 */
 	public void setBasesToIgnore3P(byte basesToIgnore3P) {
-		generator.setBasesToIgnore3P(basesToIgnore3P);
+		this.basesToIgnore3P = basesToIgnore3P;
 	}
 	public void setBasesToIgnore3P(String basesToIgnore3P) {
 		setBasesToIgnore3P((byte)OptionValuesDecoder.decode(basesToIgnore3P, Byte.class));
@@ -605,6 +603,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	}
 	public GenomicVariant discoverPopulationSNV(PileupRecord pileup, char reference) {
 		List<PileupAlleleCall> alleleCalls = pileup.getAlleleCalls(1,(String)null);
+		alleleCalls = SingleSampleVariantPileupListener.filterCalls(alleleCalls,basesToIgnore5P,basesToIgnore3P,true);
 		CountsHelper helperSNV = CountsHelper.calculateCountsSNV(alleleCalls, maxBaseQS, 0.5);
 		GenomicVariant variant = SingleSampleVariantPileupListener.createSNVVariantPool(pileup, helperSNV, reference, minAlleleDepthFrequency);
 		if(variant == null) return null;
@@ -619,6 +618,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	
 	private GenomicVariant discoverPopulationVariantWithSpan(PileupRecord pileup, String referenceAllele) {
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(referenceAllele.length(),(String)null);
+		calls = SingleSampleVariantPileupListener.filterCalls(calls,basesToIgnore5P,basesToIgnore3P,false);
 		AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder(pileup.getSequenceName(),pileup.getPosition());
 		String [] alleles =  acBuilder.clusterAlleleCalls(pileup, calls, referenceAllele, maxBaseQS);
 		CountsHelper helper = CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, 0.5, pileup.getPosition()==posPrint);

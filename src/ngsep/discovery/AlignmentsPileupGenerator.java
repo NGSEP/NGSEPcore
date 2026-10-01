@@ -59,8 +59,7 @@ public class AlignmentsPileupGenerator {
 	private int maxAlnsPerStartPos = DEF_MAX_ALNS_PER_START_POS;
 	private boolean processNonUniquePrimaryAlignments = false;
 	private boolean processSecondaryAlignments = false;
-	private byte basesToIgnore5P = 0;
-	private byte basesToIgnore3P = 0;
+	
 	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
 	private boolean realignIndels = false;
 	private int numThreads = 1;
@@ -157,22 +156,6 @@ public class AlignmentsPileupGenerator {
 
 	public void setProcessSecondaryAlignments(boolean processSecondaryAlignments) {
 		this.processSecondaryAlignments = processSecondaryAlignments;
-	}
-	
-	public byte getBasesToIgnore5P() {
-		return basesToIgnore5P;
-	}
-
-	public void setBasesToIgnore5P(byte basesToIgnore5P) {
-		this.basesToIgnore5P = basesToIgnore5P;
-	}
-
-	public byte getBasesToIgnore3P() {
-		return basesToIgnore3P;
-	}
-
-	public void setBasesToIgnore3P(byte basesToIgnore3P) {
-		this.basesToIgnore3P = basesToIgnore3P;
 	}
 	
 	/**
@@ -546,25 +529,6 @@ public class AlignmentsPileupGenerator {
 		if(currentReferencePos==posPrint)System.out.println("Added pileup to the queue");
 		currentReferencePos++;
 		return answer;
-	}
-	
-	
-	private void processPendingPileups2() {
-		ThreadPoolManager pileupProcessesManager= new ThreadPoolManager(numThreads, 2*MAX_SIZE_PENDING_PILEUPS); 
-		while(pendingPileups.size()>0) {
-			PileupRecord pileup = pendingPileups.poll();
-			try {
-				pileupProcessesManager.queueTask(()->processPileup(pileup));
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-		try {
-			pileupProcessesManager.terminatePool();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 	}
 	private void processPendingPileups() {
 		ThreadPoolManager pileupProcessesManager= new ThreadPoolManager(numThreads, numThreads);

@@ -27,6 +27,7 @@ import java.util.logging.Logger;
 
 import ngsep.alignments.ReadAlignment;
 import ngsep.discovery.AlignmentsPileupGenerator;
+import ngsep.discovery.PileupAlleleCall;
 import ngsep.discovery.PileupListener;
 import ngsep.discovery.PileupRecord;
 import ngsep.math.NumberArrays;
@@ -189,9 +190,9 @@ class SimpleSNVErrorCorrectorPileupListener implements PileupListener {
 			alnsPerNucleotide.put(DNASequence.BASES_STRING.charAt(i), new ArrayList<ReadAlignment>(alns.size()));
 		}
 		for(ReadAlignment aln:alns) {
-			CharSequence call = aln.getAlleleCall(pos);
+			PileupAlleleCall call = aln.getAlleleCall(pos);
 			if(call == null) continue;
-			char c = call.charAt(0);
+			char c = call.getAlleleString().charAt(0);
 			List<ReadAlignment> alnsAllele = alnsPerNucleotide.get(c);
 			if(alnsAllele==null) continue;
 			alnsAllele.add(aln);

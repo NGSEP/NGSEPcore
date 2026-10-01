@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import ngsep.discovery.PileupAlleleCall;
 import ngsep.genome.GenomicRegion;
 import ngsep.math.NumberArrays;
 import ngsep.sequences.LimitedSequence;
@@ -72,6 +73,8 @@ public class ReadAlignment implements GenomicRegion {
 	public static final int DEF_MIN_MQ_UNIQUE_ALIGNMENT = 20; 
 	
 	public static final String DEF_READ_GROUP = "";
+	
+	public static final int BP_CLOSE_INDEL = 2;
 	
 	public enum Platform {
 		ILLUMINA,
@@ -926,13 +929,12 @@ public class ReadAlignment implements GenomicRegion {
 	
 	
 	/**
-	 * Provides the allele call (if any) at the given reference position taking into account possible
-	 * base pairs to ignore
+	 * Provides the allele call (if any) at the given reference position
 	 * @param referencePos Position to consider in the reference sequence to which this read aligned
 	 * @return CharSequence Object with the base pair(s) starting from the reference position.
 	 * It can be more than one character, especially in the case of insertions.  
 	 */
-	public CharSequence getAlleleCall (int referencePos) {
+	public PileupAlleleCall getAlleleCall (int referencePos) {
 		//int posPrint = -1;
 		if(readCharacters ==null) return null;
 		int readPos = getAlignedReadPosition(referencePos);
@@ -943,8 +945,8 @@ public class ReadAlignment implements GenomicRegion {
 		int length = alleleCallLength[readPos];
 		//if(referencePos==posPrint) System.out.println("Allele length: "+length);
 		if(length == 0) return null;
-		//if(referencePos==-1) System.out.println("ReadAlignment. Read id: "+getReadName()+". Sequence: "+readCharacters.toString()+". readpos: "+readPos+". end: "+(readPos+length)+" subseq: "+readCharacters.subSequence(readPos, readPos+length)+". length subseq: "+readCharacters.subSequence(readPos, readPos+length).length());
-		return readCharacters.subSequence(readPos, readPos+length);
+		return buildPileupAlleleCall(referencePos, referencePos, readPos, readPos+length-1);
+		
 	}
 	/**
 	 * Provides the allele call (if any) at the given reference coordinates taking into account possible
@@ -953,33 +955,29 @@ public class ReadAlignment implements GenomicRegion {
 	 * @param referenceFirst Last position to consider in the reference sequence to which this read aligned
 	 * @return CharSequence Object with the base pair(s) aligning between the given reference positions.
 	 */
-	public CharSequence getAlleleCall (int referenceFirst, int referenceLast) {
+	public PileupAlleleCall getAlleleCall (int referenceFirst, int referenceLast) {
 		if(readCharacters == null) return null;
-		int readFirst = getAlignedReadPosition(referenceFirst);
-		int readLast = getAlignedReadPosition(referenceLast);
+		int readFirst = getAlignedReadPosition(referenceFirst); 
+		int readLast = (referenceLast==referenceFirst?readFirst:getAlignedReadPosition(referenceLast));
 		if(readFirst<0 || readLast<0 || readLast < readFirst) return null;
-		return readCharacters.subSequence(readFirst, readLast+1);
+		return buildPileupAlleleCall(referenceFirst, referenceLast, readFirst, readLast);
 	}
-	/**
-	 * Returns the base quality score in phred+33 format of the base pair aligning to the given position
-	 * @param referencePos Position to consider in the reference sequence to which this read aligned
-	 * @return char base quality score
-	 */
-	public char getBaseQualityScore (int referencePos) {
-		int readPos = getAlignedReadPosition(referencePos);
-		if(readPos<0) return 33;
-		if(qualityScores == null) return '+';
-		return (char) qualityScores[readPos];
+
+	private PileupAlleleCall buildPileupAlleleCall(int referenceFirst, int referenceLast, int readFirst, int readLast) {
+		CharSequence seqAllele = readCharacters.subSequence(readFirst, readLast+1);
+		String qs = getBaseQualityScores(readFirst, readLast);
+		PileupAlleleCall alleleCall = new PileupAlleleCall(this, seqAllele, qs, readFirst);
+		alleleCall.setCloseIndel(getCloseIndel(referenceFirst, referenceLast));
+		//if(referencePos==-1) System.out.println("ReadAlignment. Read id: "+getReadName()+". Sequence: "+readCharacters.toString()+". readpos: "+readPos+". end: "+(readPos+length)+" subseq: "+readCharacters.subSequence(readPos, readPos+length)+". length subseq: "+readCharacters.subSequence(readPos, readPos+length).length());
+		return alleleCall;
 	}
 	/**
 	 * Returns the base quality scores in phred+33 format of the base pairs aligning to the given coordinates
-	 * @param referenceFirst First position to consider in the reference sequence to which this read aligned
-	 * @param referenceFirst Last position to consider in the reference sequence to which this read aligned
+	 * @param readFirst First position to consider in the aligned read sequence
+	 * @param referenceFirst Last position to consider in the aligned read sequence
 	 * @return String base quality scores
 	 */
-	public String getBaseQualityScores (int referenceFirst, int referenceLast) {
-		int readFirst = getAlignedReadPosition(referenceFirst);
-		int readLast = getAlignedReadPosition(referenceLast);
+	private String getBaseQualityScores (int readFirst, int readLast) {
 		if(readFirst<0 || readLast<0  || readLast < readFirst) return null;
 		if(qualityScores == null) return RawRead.generateFixedQSString('+', readLast-readFirst+1);
 		char [] qs = new char[readLast-readFirst+1];
@@ -987,6 +985,15 @@ public class ReadAlignment implements GenomicRegion {
 			qs[i] = (char)qualityScores[readFirst+i];
 		}
 		return new String(qs);
+	}
+	private GenomicVariant getCloseIndel(int referenceFirst, int referenceLast) {
+		if(indelCalls==null) return null;
+		int left = referenceFirst-BP_CLOSE_INDEL;
+		int right = referenceLast+BP_CLOSE_INDEL;
+		for(GenomicVariant indelCall:indelCalls.values()) {
+			if(indelCall.getFirst()<=right && left<=indelCall.getLast()) return indelCall;
+		}
+		return null;
 	}
 	/**
 	 * Returns start sites in this alignment for indel events

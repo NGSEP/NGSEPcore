@@ -62,6 +62,8 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	private boolean ignoreLowerCaseRef = false;
 	private boolean callEmbeddedSNVs = false;
 	private short minQuality = DEF_MIN_QUALITY;
+	private byte basesToIgnore5P = 0;
+	private byte basesToIgnore3P = 0;
 	
 	// Parameters only for listener mode
 	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = new GenomicRegionSortedCollection<GenomicVariant>();
@@ -130,6 +132,21 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	 */
 	public void setMinQuality(short minQuality) {
 		this.minQuality = minQuality;
+	}
+	public byte getBasesToIgnore5P() {
+		return basesToIgnore5P;
+	}
+
+	public void setBasesToIgnore5P(byte basesToIgnore5P) {
+		this.basesToIgnore5P = basesToIgnore5P;
+	}
+
+	public byte getBasesToIgnore3P() {
+		return basesToIgnore3P;
+	}
+
+	public void setBasesToIgnore3P(byte basesToIgnore3P) {
+		this.basesToIgnore3P = basesToIgnore3P;
 	}
 	public List<GenomicVariant> getInputVariants() {
 		return inputVariants.asList();
@@ -237,6 +254,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	
 	public CalledGenomicVariant discoverSNV(PileupRecord pileup, char reference) {
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(1,(String)null);
+		calls = filterCalls(calls,basesToIgnore5P,basesToIgnore3P,true);
 		CountsHelper helperSNV = CountsHelper.calculateCountsSNV(calls, maxBaseQS, 0.5);
 		if(pileup.getPosition()==posPrint) System.out.println("Callin SNVs at "+pileup.getSequenceName()+":"+pileup.getPosition()+" Calls: "+pileup.getNumAlignments()+" helper counts: "+helperSNV.getTotalCount());
 		short ploidy = sample.getNormalPloidy();
@@ -259,8 +277,25 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		}
 	}
 	
+	public static List<PileupAlleleCall> filterCalls(List<PileupAlleleCall> calls, byte ignore5P, byte ignore3P, boolean filterCloseIndel) {
+		List<PileupAlleleCall> answer = new ArrayList<PileupAlleleCall>(calls.size());
+		for(PileupAlleleCall call:calls) {
+			if(filterCloseIndel && call.getCloseIndel()!=null) continue;
+			int start = call.getStartAlignedRead();
+			int end = start+call.length();
+			int rl = call.getReadLength();
+			if(call.isNegativeStrand()) {
+				if(start < ignore3P || rl-end < ignore5P) continue;
+			} else {
+				if(start < ignore5P || rl-end < ignore3P) continue;
+			}
+			answer.add(call);
+		}
+		return answer;
+	}
 	private CalledGenomicVariant discoverVariantWithSpan(PileupRecord pileup, String referenceAllele) {
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(referenceAllele.length(),(String)null);
+		calls = filterCalls(calls,basesToIgnore5P,basesToIgnore3P,false);
 		AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder(pileup.getSequenceName(),pileup.getPosition());
 		String [] alleles =  acBuilder.clusterAlleleCalls(pileup, calls, referenceAllele, maxBaseQS);
 		CalledGenomicVariant calledVar = discoverIndel(pileup, alleles, calls); 

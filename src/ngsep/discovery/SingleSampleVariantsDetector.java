@@ -356,34 +356,34 @@ public class SingleSampleVariantsDetector implements PileupListener {
 	}
 	/**
 	 * @return
-	 * @see ngsep.discovery.AlignmentsPileupGenerator#getBasesToIgnore5P()
+	 * @see ngsep.discovery.SingleSampleVariantPileupListener#getBasesToIgnore5P()
 	 */
 	public byte getBasesToIgnore5P() {
-		return generator.getBasesToIgnore5P();
+		return varListener.getBasesToIgnore5P();
 	}
 	/**
 	 * @param basesToIgnore5P
-	 * @see ngsep.discovery.AlignmentsPileupGenerator#setBasesToIgnore5P(byte)
+	 * @see ngsep.discovery.SingleSampleVariantPileupListener#setBasesToIgnore5P(byte)
 	 */
 	public void setBasesToIgnore5P(byte basesToIgnore5P) {
-		generator.setBasesToIgnore5P(basesToIgnore5P);
+		varListener.setBasesToIgnore5P(basesToIgnore5P);
 	}
 	public void setBasesToIgnore5P(String value) {
 		setBasesToIgnore5P((byte)OptionValuesDecoder.decode(value, Byte.class));
 	}
 	/**
 	 * @return
-	 * @see ngsep.discovery.AlignmentsPileupGenerator#getBasesToIgnore3P()
+	 * @see ngsep.discovery.SingleSampleVariantPileupListener#getBasesToIgnore3P()
 	 */
 	public byte getBasesToIgnore3P() {
-		return generator.getBasesToIgnore3P();
+		return varListener.getBasesToIgnore3P();
 	}
 	/**
 	 * @param basesToIgnore3P
-	 * @see ngsep.discovery.AlignmentsPileupGenerator#setBasesToIgnore3P(byte)
+	 * @see ngsep.discovery.SingleSampleVariantPileupListener#setBasesToIgnore3P(byte)
 	 */
 	public void setBasesToIgnore3P(byte basesToIgnore3P) {
-		generator.setBasesToIgnore3P(basesToIgnore3P);
+		varListener.setBasesToIgnore3P(basesToIgnore3P);
 	}
 	public void setBasesToIgnore3P(String value) {
 		setBasesToIgnore3P((byte)OptionValuesDecoder.decode(value, Byte.class));
