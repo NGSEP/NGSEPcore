@@ -716,7 +716,6 @@ public class KmerPrefixReadsClusteringAlgorithm {
 		Timer timer = new Timer();
 		
 		try (PrintStream outVariants = new PrintStream(outputPrefix+"_variants.vcf");
-				// TODO: do I need three consensus files?
 			 PrintStream outConsensus = new PrintStream(outputPrefix+"_consensus.fa");
 			 PrintStream memUsage = new PrintStream(outputPrefix + "_memoryUsage.txt")) {
 			int numNotNull = 0;

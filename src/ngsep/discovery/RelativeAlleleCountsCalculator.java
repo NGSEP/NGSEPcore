@@ -273,7 +273,7 @@ public class RelativeAlleleCountsCalculator implements PileupListener {
 		if(calls.size()<minRD) return;
 		Map<String, Integer> alleleCounts = new TreeMap<String, Integer>();
 		for(PileupAlleleCall call:calls) {
-			String sequence = call.getSequence().toString();
+			String sequence = call.getAlleleString();
 			char qsC = call.getQualityScores().charAt(0);
 			int qs = ((byte)qsC)-33;
 			if(qs>=minBaseQualityScore) {

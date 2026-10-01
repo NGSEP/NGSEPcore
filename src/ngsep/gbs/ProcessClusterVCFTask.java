@@ -103,7 +103,6 @@ public class ProcessClusterVCFTask extends Thread {
 		int clusterId = readCluster.getClusterNumber();
 		readCluster.buildAlignment();
 		byte ignore5 = parent.getBasesToIgnore5P();
-		//TODO: Enforce ignore bp in the 3' end
 		byte ignore3 = parent.getBasesToIgnore3P();
 		String consensus = readCluster.getConsensusSequence().toUpperCase();
 		int consensusLength = consensus.length()-ignore5;
@@ -124,6 +123,8 @@ public class ProcessClusterVCFTask extends Thread {
 		mvd.setHeterozygosityRate(h);
 		mvd.setMaxBaseQS(parent.getMaxBaseQS());
 		mvd.setMinAlleleDepthFrequency(parent.getMinAlleleDepthFrequency());
+		mvd.setBasesToIgnore5P(ignore5);
+		mvd.setBasesToIgnore3P(ignore3);
 		List<Sample> samples = parent.getSamples();
 		mvd.setSamples(samples);
 		
