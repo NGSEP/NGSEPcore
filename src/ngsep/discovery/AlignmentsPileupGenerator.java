@@ -71,6 +71,7 @@ public class AlignmentsPileupGenerator {
 	private List<ReadAlignment> pendingAlignments = new ArrayList<ReadAlignment>();
 	
 	private IndelRealignerPileupListener irl = new IndelRealignerPileupListener();
+	private ActiveIndelRegionsFinder activeRegionsFinder;
 	
 	private List<ReadAlignment> sameStartPrimaryAlignments = new ArrayList<ReadAlignment>();
 	private List<ReadAlignment> sameStartSecondaryAlignments = new ArrayList<ReadAlignment>();
@@ -448,7 +449,9 @@ public class AlignmentsPileupGenerator {
 			} else if (maxAlnsPerStartPos<=0 || count<maxAlnsPerStartPos) {
 				alnsPerReadGroup.put(aln.getReadGroup(), count+1);
 			} else continue;
+			activeRegionsFinder.processAlignment(aln);
 			pendingAlignments.add(aln);
+			//if(aln.getFirst()<4000) System.out.println("AlignmentsPileupGenerator. Updated active regions before and adding alignment: "+aln);
 		}
 		allAlnsPos.clear();
 	}
@@ -462,6 +465,8 @@ public class AlignmentsPileupGenerator {
 		log.info("Processing sequence "+currentReferenceSequence.getName());
 		currentReferencePos = aln.getFirst();
 		currentReferenceLast = aln.getLast();
+		activeRegionsFinder = new ActiveIndelRegionsFinder();
+		activeRegionsFinder.setInputVariants(irl.getInputVariants().asList());
 		irl.onSequenceStart(currentReferenceSequence);
 		for(PileupListener listener:listeners) listener.onSequenceStart(currentReferenceSequence);
 	}
@@ -520,11 +525,13 @@ public class AlignmentsPileupGenerator {
 		}
 		if(currentReferencePos==posPrint)System.out.println("Number of alignments in pileup: "+pileup.getNumAlignments());
 		boolean answer = pileup.getNumAlignments()>0;
+		if(currentReferencePos==posPrint) System.out.println("AlignmentsPileupGenerator. Updating pileup with active regions");
+		
 		if(realignIndels) {
 			irl.onPileup(pileup);
 		}
 		if(currentReferencePos==posPrint)System.out.println("Number of alignments in pileup after realignment: "+pileup.getNumAlignments());
-		if(pendingPileups.size()>=MAX_SIZE_PENDING_PILEUPS && pileup.getReferenceSpan()==1) processPendingPileups();
+		if(pendingPileups.size()>=MAX_SIZE_PENDING_PILEUPS && !activeRegionsFinder.isRegionInProgress()) processPendingPileups();
 		pendingPileups.add(pileup);
 		if(currentReferencePos==posPrint)System.out.println("Added pileup to the queue");
 		currentReferencePos++;
@@ -564,7 +571,10 @@ public class AlignmentsPileupGenerator {
 	}
 
 	private void processPileupsGroup(List<PileupRecord> nextGroup) {
-		for(PileupRecord pileup:nextGroup) processPileup(pileup);
+		for(PileupRecord pileup:nextGroup) {
+			activeRegionsFinder.updatePileup(pileup);
+			processPileup(pileup);
+		}
 	}
 
 	private void processPileup(PileupRecord pileup) {

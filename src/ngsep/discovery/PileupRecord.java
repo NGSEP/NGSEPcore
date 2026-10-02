@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 
 import ngsep.alignments.ReadAlignment;
+import ngsep.genome.GenomicRegion;
 import ngsep.math.FisherExactTest;
 
 /**
@@ -42,6 +43,7 @@ public class PileupRecord {
 	private int numAlignments = 0;
 	private int numUniqueAlns = 0;
 	private int numNegativeStrandAlns = 0;
+	private GenomicRegion activeRegion;
 	private boolean str = false;
 	private boolean newSTR = false;
 	
@@ -94,6 +96,18 @@ public class PileupRecord {
 	public void setReferenceSpan(int referenceSpan) {
 		this.referenceSpan = referenceSpan;
 	}
+	
+	
+	public GenomicRegion getActiveRegion() {
+		return activeRegion;
+	}
+
+	public void setActiveRegion(GenomicRegion activeRegion) {
+		if(!this.getSequenceName().equals(activeRegion.getSequenceName())) throw new RuntimeException("Inconsistent sequence name for active region. Region sequenceName: "+activeRegion.getSequenceName()+" this sequence name: "+sequenceName);
+		this.activeRegion = activeRegion;
+		if(activeRegion.getFirst()==position) referenceSpan = activeRegion.length();
+	}
+
 	/**
 	 * Calculates the allele calls from the pileup position with the given span
 	 * @param referenceSpan Length in reference basepairs of the desired allele calls

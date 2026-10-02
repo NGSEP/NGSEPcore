@@ -42,7 +42,7 @@ import ngsep.variants.GenomicVariant;
 public class IndelRealignerPileupListener implements PileupListener {
 
 	private static final int DEF_REGION_BOUNDARY = 100;
-	private GenomicRegionSortedCollection<? extends GenomicVariant> inputVariants = null;
+	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = null;
 	private ReferenceGenome genome;
 	private int minBPForGoodRefAln = 5;
 	private int maxBPRealignmentEnd = 50;
@@ -50,17 +50,17 @@ public class IndelRealignerPileupListener implements PileupListener {
 	private double minPropSupportIndelCalls = 0;
 	
 	
-	private List<? extends GenomicVariant> seqInputVariants;
+	private List<GenomicVariant> seqInputVariants;
 	private int idxNextVariant = 0;
 	
 	//DEBUG
 	private int posPrint = -1;
 
-	public GenomicRegionSortedCollection<? extends GenomicRegion> getInputVariants() {
+	public GenomicRegionSortedCollection<GenomicVariant> getInputVariants() {
 		return inputVariants;
 	}
 
-	public void setInputVariants(GenomicRegionSortedCollection<? extends GenomicVariant> inputVariants) {
+	public void setInputVariants(GenomicRegionSortedCollection<GenomicVariant> inputVariants) {
 		this.inputVariants = inputVariants;
 	}
 	
@@ -321,16 +321,6 @@ public class IndelRealignerPileupListener implements PileupListener {
 		int currentPos = pileup.getPosition();
 		//Look first in the reference
 		if(alns.size()==0) return 0;
-		CharSequence seq = genome.getReference(pileup.getSequenceName(), currentPos+1, alns.get(alns.size()-1).getLast());
-		int lengthRef = 0;
-		if(seq!=null) {
-			String reference = seq.toString().toUpperCase();
-			lengthRef = checkTandemRepeat(reference);
-		}
-		if(lengthRef>0) {
-			//System.out.println("IndelRealigner. Found new STR from reference at "+pileup.getSequenceName()+":"+currentPos+" sequence: "+reference+" length: "+lengthRef);
-			return lengthRef+2;
-		}
 		for(ReadAlignment aln:alns) {
 			GenomicVariant indel = aln.getIndelCall(currentPos);
 			if(indel!=null && indel.length() == maxLength) {
@@ -353,53 +343,10 @@ public class IndelRealignerPileupListener implements PileupListener {
 	}
 
 	private int checkTandemRepeat(ReadAlignment aln, int currentPos) {
-		int readFirst = aln.getAlignedReadPosition(currentPos);
-		if(readFirst < 0) return 0;
-		String seq = aln.getReadCharacters().toString();
-		seq = seq.substring(readFirst+1).toUpperCase();
-		return checkTandemRepeat(seq);
+		GenomicRegion indel = aln.checkMononucleotide(currentPos);
+		if(indel==null) return 0;
+		return indel.length();
 	}
-
-	private int checkTandemRepeat(String seq) {
-		int length = checkMonoNucleotide(seq);
-		if(length==0) length = checkDinucleotide(seq);
-		return length;
-	}
-
-	private int checkMonoNucleotide(String seq) {
-		int [] counts = new int [4];
-		int minLength = 5;
-		int i=0;
-		while(i<seq.length() && i<minLength) {
-			int j = DNASequence.BASES_STRING.indexOf(seq.charAt(i));
-			if(j>=0) counts[j]++;
-			i++;
-		}
-		int baseIdx = -1;
-		for(int j=0;j<counts.length;j++) {
-			if(counts[j]>=i-1) {
-				baseIdx = j;
-				break;
-			}
-		}
-		if(baseIdx == -1 || i<minLength) return 0;
-		while(i<seq.length() && counts[baseIdx]>=i-1) {
-			int j = DNASequence.BASES_STRING.indexOf(seq.charAt(i));
-			if(j>=0) counts[j]++;
-			i++;
-		}
-		i--;
-		//System.out.println("Tandem repeat from sequence: "+seq+" I: "+i);
-		if(DNASequence.BASES_STRING.indexOf(seq.charAt(i-1))!=baseIdx) return i-1;
-		return i;
-	}
-
-	private int checkDinucleotide(String seq) {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-	
-	
 	
 	private void processEndsOfAlignments(List<ReadAlignment> alignments, String sequenceName, int eventFirst, int eventLast) {
 		//Calculate reference alleles before and after

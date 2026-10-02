@@ -30,7 +30,9 @@ import java.util.TreeMap;
 
 import ngsep.discovery.PileupAlleleCall;
 import ngsep.genome.GenomicRegion;
+import ngsep.genome.GenomicRegionImpl;
 import ngsep.math.NumberArrays;
+import ngsep.sequences.DNASequence;
 import ngsep.sequences.LimitedSequence;
 import ngsep.sequences.RawRead;
 import ngsep.variants.GenomicVariant;
@@ -1546,5 +1548,47 @@ public class ReadAlignment implements GenomicRegion {
 		if("PACBIO".equals(platform)) return Platform.PACBIO;
 		if("ONT".equals(platform)) return Platform.ONT;
 		return null;
+	}
+	public GenomicRegion checkMononucleotide(int indelPos) {
+		GenomicVariant indel = indelCalls.get(indelPos);
+		if(indel==null) return null;          
+		int readFirst = getAlignedReadPosition(indelPos);
+		if(readFirst < 0) return null;
+		//Count bp composition ahead
+		int [] counts = new int [4];
+		int minLength = 5;
+		int i=readFirst;
+		for(int j=0;i<readCharacters.length() && j<minLength;j++) {
+			int k = DNASequence.BASES_STRING.indexOf(readCharacters.charAt(i));
+			if(k>=0) counts[k]++;
+			i++;
+		}
+		//Choose repetitive nucleotide
+		int baseIdx = -1;
+		for(int j=0;j<counts.length;j++) {
+			if(counts[j]>=i-1) {
+				baseIdx = j;
+				break;
+			}
+		}
+		if(baseIdx == -1) return null;
+		GenomicRegionImpl answer = new GenomicRegionImpl(sequenceName, indelPos, indel.getLast());
+		//Extend right
+		for(i=readFirst+minLength;i<readCharacters.length() && baseIdx==DNASequence.BASES_STRING.indexOf(readCharacters.charAt(i));i++);
+		int refEnd = getReferencePositionAlignedRead(i);
+		while(refEnd==-1 && i<readCharacters.length()) {
+			i++;
+			refEnd = getReferencePositionAlignedRead(i);
+		}
+		if(refEnd>answer.getLast()) answer.setLast(refEnd);
+		//Extend left
+		for(i=readFirst-1;i>=0 && baseIdx==DNASequence.BASES_STRING.indexOf(readCharacters.charAt(i));i--);
+		int refStart = getReferencePositionAlignedRead(i);
+		while(refStart==-1 && i>0) {
+			i--;
+			refStart = getReferencePositionAlignedRead(i);
+		}
+		if(refStart>0 && refStart<answer.getFirst()) answer.setFirst(refStart);
+		return answer;
 	}
 }

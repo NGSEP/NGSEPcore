@@ -944,7 +944,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 		s.setNormalPloidy(normalPloidy);
 		header.addSample(s, printSamplePloidy);
 		
-		generator.setRealignIndels(true);
+		//generator.setRealignIndels(true);
 		Platform pl = platform;
 		if(pl==null) {
 			//Look for platform in the input file
