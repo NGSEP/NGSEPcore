@@ -452,7 +452,7 @@ public class AlignmentsPileupGenerator {
 		currentReferencePos = aln.getFirst();
 		currentReferenceLast = aln.getLast();
 		activeRegionsFinder = new ActiveIndelRegionsFinder();
-		activeRegionsFinder.setInputVariants(inputVariants.getSequenceRegions(seqName).asList());
+		if(inputVariants!=null) activeRegionsFinder.setInputVariants(inputVariants.getSequenceRegions(seqName).asList());
 		for(PileupListener listener:listeners) listener.onSequenceStart(currentReferenceSequence);
 	}
 	private void endSequence() {
@@ -519,6 +519,7 @@ public class AlignmentsPileupGenerator {
 		return answer;
 	}
 	private void processPendingPileups() {
+		activeRegionsFinder.startPileups();
 		ThreadPoolManager pileupProcessesManager= new ThreadPoolManager(numThreads, numThreads);
 		int pileupsPerThread = pendingPileups.size();
 		if(pendingPileups.size()>2*numThreads) pileupsPerThread = 1+pendingPileups.size()/numThreads;

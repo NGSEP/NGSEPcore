@@ -80,8 +80,6 @@ public class ActiveIndelRegionsFinder {
 			addActiveRegion(nextRegionCandidate);
 			nextRegionCandidate = null;
 		}
-		//Sort if not sorted after adding new elements
-		if(nextRegionCandidate!=null) activeRegions.getSequenceRegions(nextRegionCandidate.getSequenceName());
 		lastPositionUpdate = currentPos;
 	}
 	public boolean isRegionInProgress() {
@@ -93,6 +91,10 @@ public class ActiveIndelRegionsFinder {
 			activeRegions.add(nextRegionCandidate);
 			lastActiveRegionEnd = Math.max(lastActiveRegionEnd, nextRegionCandidate.getLast());
 		}
+	}
+	
+	public void startPileups() {
+		activeRegions.forceSort();
 	}
 
 	public void updatePileup(PileupRecord pileup) {
