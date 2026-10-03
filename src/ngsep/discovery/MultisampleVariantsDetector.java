@@ -603,7 +603,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	}
 	public GenomicVariant discoverPopulationSNV(PileupRecord pileup, char reference) {
 		List<PileupAlleleCall> alleleCalls = pileup.getAlleleCalls(1,(String)null);
-		alleleCalls = SingleSampleVariantPileupListener.filterCalls(alleleCalls,basesToIgnore5P,basesToIgnore3P,true);
+		alleleCalls = SingleSampleVariantPileupListener.filterCalls(pileup,alleleCalls,basesToIgnore5P,basesToIgnore3P,true);
 		CountsHelper helperSNV = CountsHelper.calculateCountsSNV(alleleCalls, maxBaseQS, 0.5);
 		GenomicVariant variant = SingleSampleVariantPileupListener.createSNVVariantPool(pileup, helperSNV, reference, minAlleleDepthFrequency);
 		if(variant == null) return null;
@@ -618,7 +618,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	
 	private GenomicVariant discoverPopulationVariantWithSpan(PileupRecord pileup, String referenceAllele) {
 		List<PileupAlleleCall> calls = pileup.getAlleleCalls(referenceAllele.length(),(String)null);
-		calls = SingleSampleVariantPileupListener.filterCalls(calls,basesToIgnore5P,basesToIgnore3P,false);
+		calls = SingleSampleVariantPileupListener.filterCalls(pileup, calls,basesToIgnore5P,basesToIgnore3P,false);
 		AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder(pileup.getSequenceName(),pileup.getPosition());
 		String [] alleles =  acBuilder.clusterAlleleCalls(pileup, calls, referenceAllele, maxBaseQS);
 		CountsHelper helper = CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, 0.5, pileup.getPosition()==posPrint);

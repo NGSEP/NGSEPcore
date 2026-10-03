@@ -76,7 +76,7 @@ public class ReadAlignment implements GenomicRegion {
 	
 	public static final String DEF_READ_GROUP = "";
 	
-	public static final int BP_CLOSE_INDEL = 2;
+	public static final int BP_CLOSE_INDEL = 0;
 	
 	public enum Platform {
 		ILLUMINA,

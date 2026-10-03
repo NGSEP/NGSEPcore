@@ -903,11 +903,13 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 			}
 			if(calledAlleles.length==1) {
 				//Homozygous
+				if(first == posPrint) System.out.println("Exhaustive matching test haplotypes. Next call at: "+call.getFirst()+" homozygous called allele: "+calledAlleles[0]+" is homozygous: "+call.isHomozygous());
 				for(int i=0;i<haplotypePairs.length;i++) {
 					haplotypePairs[i][0].append(calledAlleles[0]);
 					haplotypePairs[i][1].append(calledAlleles[0]);
 				}
 			} else {
+				if(first == posPrint) System.out.println("Exhaustive matching test haplotypes. Next call at: "+call.getFirst()+" het called alleles: "+calledAlleles[0]+" "+calledAlleles[1]+" is het: "+call.isHeterozygous());
 				for(int i=0;i<haplotypePairs.length;i++) {
 					boolean allele1First = i%(2*power)>=power;
 					if(allele1First) {
@@ -933,7 +935,7 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 		String [] answer = new String [2];
 		double minD = 0;
 		if(first == posPrint) {
-			System.out.println("Find best match");
+			System.out.println("Find best match for "+haplotypePairs.length+" pairs");
 			System.out.println(haplotype0);
 			System.out.println(haplotype1);
 		}
@@ -960,14 +962,18 @@ class GoldStandardHaplotypeReconstruction implements CalledGenomicVariant {
 				String query = hapTest1.substring(0,haplotype1.length());
 				d += measure.calculateDistance(query, haplotype1)+2*(hapTest1.length()-haplotype1.length());
 			}
-			if (first == posPrint) System.out.println(hapTest0+" "+d);
+			if (first == posPrint) System.out.println(hapTest0+" "+hapTest1+" "+d);
 			if(answer[0]==null || minD>d) {
 				answer[0] = hapTest0;
 				answer[1] = hapTest1;
 				minD = d;
 			}
 		}
-		
+		if(first == posPrint) {
+			System.out.println("Matched haps with distance "+minD);
+			System.out.println(answer[0]);
+			System.out.println(answer[1]);
+		}
 		
 		return answer;
 	}
