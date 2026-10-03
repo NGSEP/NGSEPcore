@@ -33,12 +33,13 @@ import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.ReferenceGenome;
 import ngsep.math.CountsRankHelper;
 import ngsep.math.NumberArrays;
-import ngsep.sequences.DNASequence;
 import ngsep.sequences.HammingSequenceDistanceMeasure;
 import ngsep.sequences.QualifiedSequence;
 import ngsep.variants.GenomicVariant;
 
-
+/**
+ * @deprecated See ngsep.discovery.ActiveIndelRegionsFinder
+ */
 public class IndelRealignerPileupListener implements PileupListener {
 
 	private static final int DEF_REGION_BOUNDARY = 100;

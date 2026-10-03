@@ -82,6 +82,9 @@ public class GenomicRegionImpl implements GenomicRegion {
 		this.negativeStrand = negativeStrand;
 	}
 	
+	public String toString() {
+		return ""+sequenceName+":"+first+"-"+last;
+	}
 	
 
 }

@@ -255,6 +255,7 @@ public class VCFGoldStandardComparator {
 						if(crsl!=null) confidenceRegionsSeq.addAll(crsl);
 					}
 					if(complexRegions!=null) complexRegionsSeq = complexRegions.get(sequenceName);
+					//System.out.println("Complex regions seq "+sequenceName+": "+complexRegionsSeq);
 					pIdx = 0;
 					gsCalls.clear();
 					clusterFirst=clusterLast=0;
@@ -266,18 +267,20 @@ public class VCFGoldStandardComparator {
 				if(complexRegionsSeq!=null) {
 					for(;pIdx<complexRegionsSeq.size();pIdx++) {
 						GenomicRegion region = complexRegionsSeq.get(pIdx);
+						//System.out.println("Next complex reg. Idx: "+pIdx+" coords: "+region.getFirst()+" "+region.getLast()+" current cluster limits: "+clusterFirst+" "+clusterLast);
 						if(clusterLast+DEF_MIN_CLUSTER_DISTANCE<=region.getFirst()) break;
 						if(clusterFirst<region.getLast()+DEF_MIN_CLUSTER_DISTANCE) {
 							clusterType = GenomicVariant.TYPE_STR;
 							clusterLast = Math.max(clusterLast, region.getLast());
 							clusterFirst = Math.min(clusterFirst, region.getFirst());
 						}
+						//System.out.println("Next complex reg "+region.getFirst()+" "+region.getLast()+" new cluster limits: "+clusterFirst+" "+clusterLast);
 					}
 				}
 				int nextClusterFirst = clusterLast+Math.max(DEF_MIN_CLUSTER_DISTANCE, clusterLast-clusterFirst+1);
 				nextClusterFirst = Math.min(nextClusterFirst, clusterLast+DEF_MAX_CLUSTER_DISTANCE);
-				
-				boolean gsClose = nextClusterFirst>recordGS.getFirst();
+				//System.out.println("Current cluster limits: "+clusterFirst+" "+clusterLast+" nextclusterfirst: "+nextClusterFirst+" nextGS: "+recordGS.getFirst());
+				boolean gsClose = nextClusterFirst>=recordGS.getFirst();
 				if (!gsClose) {
 					processClusterCalls (gsCalls, clusterFirst, clusterLast, clusterType, testCallsSequence, confidenceRegionsSeq, seqLen);
 					countProcessedClusters++;

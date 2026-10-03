@@ -50,6 +50,7 @@ public class AlignmentsPileupGenerator {
 	//Required to process CRAM files
 	private ReferenceGenome genome=null;
 	private QualifiedSequenceList sequencesMetadata;
+	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = null;
 	
 	private String querySeq=null;
 	private int queryFirst = 0;
@@ -59,24 +60,20 @@ public class AlignmentsPileupGenerator {
 	private int maxAlnsPerStartPos = DEF_MAX_ALNS_PER_START_POS;
 	private boolean processNonUniquePrimaryAlignments = false;
 	private boolean processSecondaryAlignments = false;
-	
+	private double minPropSupportIndelCalls = 0;
 	private int minMQ = ReadAlignment.DEF_MIN_MQ_UNIQUE_ALIGNMENT;
-	private boolean realignIndels = false;
 	private int numThreads = 1;
+	
+	private ActiveIndelRegionsFinder activeRegionsFinder;
 	
 	// Internal attributes to follow up the pileup process
 	private QualifiedSequence currentReferenceSequence = null;
 	private int currentReferencePos = 0;
 	private int currentReferenceLast = 0;
 	private List<ReadAlignment> pendingAlignments = new ArrayList<ReadAlignment>();
-	
-	private IndelRealignerPileupListener irl = new IndelRealignerPileupListener();
-	private ActiveIndelRegionsFinder activeRegionsFinder;
-	
 	private List<ReadAlignment> sameStartPrimaryAlignments = new ArrayList<ReadAlignment>();
 	private List<ReadAlignment> sameStartSecondaryAlignments = new ArrayList<ReadAlignment>();
 	private int lastReadAlignmentStart = 0;
-	
 	private Queue<PileupRecord> pendingPileups = new LinkedList<PileupRecord>();
 	private static final int MAX_SIZE_PENDING_PILEUPS = 100000;
 	
@@ -171,23 +168,13 @@ public class AlignmentsPileupGenerator {
 	public void setMinMQ(int minMQ) {
 		this.minMQ = minMQ;
 	}
-
-	public boolean isRealignIndels() {
-		return realignIndels;
-	}
 	
-	public void setRealignIndels(boolean realignIndels) {
-		this.realignIndels = realignIndels;
-	}
-	
-	
-
 	public double getMinPropSupportIndelCalls() {
-		return irl.getMinPropSupportIndelCalls();
+		return minPropSupportIndelCalls;
 	}
 
 	public void setMinPropSupportIndelCalls(double minPropSupportIndelCalls) {
-		irl.setMinPropSupportIndelCalls(minPropSupportIndelCalls);
+		this.minPropSupportIndelCalls = minPropSupportIndelCalls;
 	}
 
 	public int getNumThreads() {
@@ -213,10 +200,9 @@ public class AlignmentsPileupGenerator {
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
 		this.sequencesMetadata = genome.getSequencesMetadata();
-		irl.setGenome(genome);
 	}
 	public void setInputVariants(GenomicRegionSortedCollection<GenomicVariant> inputVariants) {
-		irl.setInputVariants(inputVariants);
+		this.inputVariants = inputVariants;
 	}
 
 	/**
@@ -466,15 +452,13 @@ public class AlignmentsPileupGenerator {
 		currentReferencePos = aln.getFirst();
 		currentReferenceLast = aln.getLast();
 		activeRegionsFinder = new ActiveIndelRegionsFinder();
-		activeRegionsFinder.setInputVariants(irl.getInputVariants().asList());
-		irl.onSequenceStart(currentReferenceSequence);
+		activeRegionsFinder.setInputVariants(inputVariants.getSequenceRegions(seqName).asList());
 		for(PileupListener listener:listeners) listener.onSequenceStart(currentReferenceSequence);
 	}
 	private void endSequence() {
 		processPileups(currentReferenceLast+1);
 		processPendingPileups();
 		log.info("Processed sequence "+currentReferenceSequence.getName());
-		irl.onSequenceEnd(currentReferenceSequence);
 		if(currentReferenceSequence!=null) for(PileupListener listener:listeners) listener.onSequenceEnd(currentReferenceSequence);
 		currentReferenceSequence=null;
 	}
@@ -527,9 +511,6 @@ public class AlignmentsPileupGenerator {
 		boolean answer = pileup.getNumAlignments()>0;
 		if(currentReferencePos==posPrint) System.out.println("AlignmentsPileupGenerator. Updating pileup with active regions");
 		
-		if(realignIndels) {
-			irl.onPileup(pileup);
-		}
 		if(currentReferencePos==posPrint)System.out.println("Number of alignments in pileup after realignment: "+pileup.getNumAlignments());
 		if(pendingPileups.size()>=MAX_SIZE_PENDING_PILEUPS && !activeRegionsFinder.isRegionInProgress()) processPendingPileups();
 		pendingPileups.add(pileup);

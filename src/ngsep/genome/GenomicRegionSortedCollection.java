@@ -70,9 +70,12 @@ public class GenomicRegionSortedCollection<T extends GenomicRegion> implements C
 			longRegionsMap.put(index, new ArrayList<T>());
 		}
 		List<T> regions = regionsMap.get(index);
+		//T lastRegion = (regions.size()>0?regions.get(regions.size()-1):null);
 		regions.add(e);
 		size++;
 		sorted = false;
+		//sorted = (lastRegion==null || GenomicRegionPositionComparator.getInstance().compare(lastRegion, e)<=0);
+		//System.out.println("Next region "+e.getSequenceName()+":"+ e.getFirst()+"-"+e.getLast()+" sorted: "+sorted);
 		return true;
 	}
 	@Override

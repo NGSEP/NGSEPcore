@@ -887,7 +887,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 					
 					first = r.getFirst();
 				}
-				last = r.getLast();
+				last = Math.max(last, r.getLast());
 			}
 			if(last>0) {
 				GenomicVariant nextVar = makeSTRVariant(genome, seqName, Math.max(1, first-1),Math.min(last+1,seq.getLength()));

@@ -80,13 +80,15 @@ public class ActiveIndelRegionsFinder {
 			addActiveRegion(nextRegionCandidate);
 			nextRegionCandidate = null;
 		}
+		//Sort if not sorted after adding new elements
+		if(nextRegionCandidate!=null) activeRegions.getSequenceRegions(nextRegionCandidate.getSequenceName());
 		lastPositionUpdate = currentPos;
 	}
 	public boolean isRegionInProgress() {
 		return nextRegionCandidate!=null;
 	}
 
-	private void addActiveRegion(GenomicRegionImpl nextRegionCandidate2) {
+	private void addActiveRegion(GenomicRegionImpl nextRegionCandidate) {
 		if(countSupport>=minEventSupportActiveRegion) {
 			activeRegions.add(nextRegionCandidate);
 			lastActiveRegionEnd = Math.max(lastActiveRegionEnd, nextRegionCandidate.getLast());
