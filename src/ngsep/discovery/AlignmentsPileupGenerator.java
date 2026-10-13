@@ -451,7 +451,7 @@ public class AlignmentsPileupGenerator {
 		log.info("Processing sequence "+currentReferenceSequence.getName());
 		currentReferencePos = aln.getFirst();
 		currentReferenceLast = aln.getLast();
-		activeRegionsFinder = new ActiveIndelRegionsFinder();
+		activeRegionsFinder = new ActiveIndelRegionsFinder(genome);
 		if(inputVariants!=null) activeRegionsFinder.setInputVariants(inputVariants.getSequenceRegions(seqName).asList());
 		for(PileupListener listener:listeners) listener.onSequenceStart(currentReferenceSequence);
 	}

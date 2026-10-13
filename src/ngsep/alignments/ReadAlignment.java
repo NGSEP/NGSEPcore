@@ -1550,6 +1550,7 @@ public class ReadAlignment implements GenomicRegion {
 		return null;
 	}
 	public GenomicRegion checkMononucleotide(int indelPos) {
+		int posPrint = -1;
 		GenomicVariant indel = indelCalls.get(indelPos);
 		if(indel==null) return null;          
 		int readFirst = getAlignedReadPosition(indelPos);
@@ -1563,10 +1564,11 @@ public class ReadAlignment implements GenomicRegion {
 			if(k>=0) counts[k]++;
 			i++;
 		}
+		if(indelPos == posPrint) System.out.println("CheckMononucleotide. Read: "+this+". Start read: "+readFirst+" end: "+i+" counts: "+counts[0]+" "+counts[1]+" "+counts[2]+" "+counts[3]);
 		//Choose repetitive nucleotide
 		int baseIdx = -1;
 		for(int j=0;j<counts.length;j++) {
-			if(counts[j]>=i-1) {
+			if(counts[j]>=minLength-1) {
 				baseIdx = j;
 				break;
 			}
@@ -1574,7 +1576,7 @@ public class ReadAlignment implements GenomicRegion {
 		if(baseIdx == -1) return null;
 		GenomicRegionImpl answer = new GenomicRegionImpl(sequenceName, indelPos, indel.getLast());
 		//Extend right
-		for(i=readFirst+minLength;i<readCharacters.length() && baseIdx==DNASequence.BASES_STRING.indexOf(readCharacters.charAt(i));i++);
+		for(;i<readCharacters.length() && baseIdx==DNASequence.BASES_STRING.indexOf(readCharacters.charAt(i));i++);
 		int refEnd = getReferencePositionAlignedRead(i);
 		while(refEnd==-1 && i<readCharacters.length()) {
 			i++;
@@ -1582,7 +1584,7 @@ public class ReadAlignment implements GenomicRegion {
 		}
 		if(refEnd>answer.getLast()) answer.setLast(refEnd);
 		//Extend left
-		for(i=readFirst-1;i>=0 && baseIdx==DNASequence.BASES_STRING.indexOf(readCharacters.charAt(i));i--);
+		for(i=readFirst;i>=0 && baseIdx==DNASequence.BASES_STRING.indexOf(readCharacters.charAt(i));i--);
 		int refStart = getReferencePositionAlignedRead(i);
 		while(refStart==-1 && i>0) {
 			i--;

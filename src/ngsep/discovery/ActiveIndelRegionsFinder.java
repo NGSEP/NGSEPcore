@@ -9,11 +9,14 @@ import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.GenomicRegionSortedCollection;
 import ngsep.genome.GenomicRegionSpanComparator;
+import ngsep.genome.ReferenceGenome;
 import ngsep.variants.GenomicVariant;
+import ngsep.variants.GenomicVariantImpl;
 
 public class ActiveIndelRegionsFinder {
 	private PriorityQueue<GenomicRegion> rawRegions = new PriorityQueue<GenomicRegion>((r1,r2)->r1.getFirst()-r2.getFirst());
 	private GenomicRegionSortedCollection<GenomicRegion> activeRegions = new GenomicRegionSortedCollection<GenomicRegion>();
+	private ReferenceGenome genome;
 	
 	private int minEventSupportActiveRegion = 2;
 	private int flankBasepairsIndel = 1;
@@ -24,6 +27,11 @@ public class ActiveIndelRegionsFinder {
 	
 	
 	
+	public ActiveIndelRegionsFinder(ReferenceGenome genome) {
+		super();
+		this.genome = genome;
+	}
+
 	public int getMinEventSupportActiveRegion() {
 		return minEventSupportActiveRegion;
 	}
@@ -47,14 +55,17 @@ public class ActiveIndelRegionsFinder {
 			if(indelCall.length()>50) continue;
 			if(activeRegions.findSpanningRegions(indelCall).size()>0) continue;
 			GenomicRegion mononucleotideReg = aln.checkMononucleotide(indelCall.getFirst());
-			if(mononucleotideReg!=null) rawRegions.add(mononucleotideReg);
+			if(mononucleotideReg!=null) {
+				GenomicVariant str = GenomicVariantImpl.makeSTRVariant(genome, aln.getSequenceName(), mononucleotideReg.getFirst(), mononucleotideReg.getLast());
+				if(str!=null) rawRegions.add(str);
+			}
 			else if(indelCall.getLast()-indelCall.getFirst()>1) rawRegions.add(new GenomicRegionImpl(aln.getSequenceName(), indelCall.getFirst(), indelCall.getLast()));
 			else rawRegions.add(new GenomicRegionImpl(aln.getSequenceName(), indelCall.getFirst()-flankBasepairsIndel, indelCall.getLast()+flankBasepairsIndel));
 		}
 		updateActiveRegions(aln.getFirst());
 	}
 	private int countSupport = 0;
-	private GenomicRegionImpl nextRegionCandidate;
+	private GenomicRegion nextRegionCandidate;
 	private int lastPositionUpdate = 0;
 	private void updateActiveRegions(int currentPos) {
 		if(currentPos<=lastPositionUpdate) return;
@@ -64,14 +75,17 @@ public class ActiveIndelRegionsFinder {
 			rawRegions.remove();
 			//if(currentPos>3000 && currentPos<4000) System.out.println("Updating active regions until: "+currentPos+" . Next region: "+rawRegion.getFirst()+"-"+rawRegion.getLast());
 			if(nextRegionCandidate!=null && GenomicRegionSpanComparator.getInstance().span(nextRegionCandidate, rawRegion) ) {
-				nextRegionCandidate.setLast(Math.max(nextRegionCandidate.getLast(), rawRegion.getLast()));
+				if(rawRegion.getLast()>nextRegionCandidate.getLast()) {
+					if(nextRegionCandidate instanceof GenomicVariantImpl) ((GenomicVariantImpl)nextRegionCandidate).setLast(rawRegion.getLast());
+					else if(nextRegionCandidate instanceof GenomicRegionImpl) ((GenomicRegionImpl)nextRegionCandidate).setLast(rawRegion.getLast());
+				}	
 				countSupport++;
 			} else if (nextRegionCandidate==null) {
-				nextRegionCandidate = (GenomicRegionImpl)rawRegion;
+				nextRegionCandidate = rawRegion;
 			} else {
 				//if(nextRegionCandidate.length()>20) System.out.println("Adding region "+nextRegionCandidate.getSequenceName()+":"+nextRegionCandidate.getFirst()+"-"+nextRegionCandidate.getLast()+" "+nextRegionCandidate.length()+" support: "+countSupport);
 				addActiveRegion (nextRegionCandidate);		
-				nextRegionCandidate = (GenomicRegionImpl)rawRegion;
+				nextRegionCandidate = rawRegion;
 				countSupport=1;
 			}
 			rawRegion = rawRegions.peek();
@@ -86,7 +100,7 @@ public class ActiveIndelRegionsFinder {
 		return nextRegionCandidate!=null;
 	}
 
-	private void addActiveRegion(GenomicRegionImpl nextRegionCandidate) {
+	private void addActiveRegion(GenomicRegion nextRegionCandidate) {
 		if(countSupport>=minEventSupportActiveRegion) {
 			activeRegions.add(nextRegionCandidate);
 			lastActiveRegionEnd = Math.max(lastActiveRegionEnd, nextRegionCandidate.getLast());

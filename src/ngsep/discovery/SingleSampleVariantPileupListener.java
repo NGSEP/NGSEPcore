@@ -52,6 +52,9 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	public static final String DEF_SAMPLE_ID = "Sample";
 	public static final byte DEF_MIN_PLOIDY_POOL_ALGORITHM = 3;
 	
+	private static final double DEF_LOG_ERROR_PROB_INDEL = Math.log10(0.0001);
+	private static final double DEF_LOG_ERROR_PROB_STR = Math.log10(0.01);
+	
 	private GenomicRegionSortedCollection<CalledGenomicVariant> calledVariants = new GenomicRegionSortedCollection<CalledGenomicVariant>();
 	
 	// Parameters 
@@ -177,7 +180,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	@Override
 	public void onPileup(PileupRecord pileup) {
 		if(inputVariants.size()==0) {
-			if(pileup.getPosition()==posPrint) System.out.println("InputSTR: "+pileup.isInputSTR()+" span: "+pileup.getReferenceSpan()+" reads: "+pileup.getNumAlignments());
+			if(pileup.getPosition()==posPrint) System.out.println("STR: "+pileup.isSTR()+" span: "+pileup.getReferenceSpan()+" reads: "+pileup.getNumAlignments());
 			String referenceAllele = SingleSampleVariantPileupListener.calculateReferenceAlleleDiscovery(pileup,genome,ignoreLowerCaseRef);
 			if(referenceAllele == null) return;
 			CalledGenomicVariant calledVar = discoverVariant(pileup, referenceAllele);
@@ -278,7 +281,6 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	}
 	
 	public static List<PileupAlleleCall> filterCalls(PileupRecord pileup, List<PileupAlleleCall> calls, byte ignore5P, byte ignore3P, boolean filterCloseIndel) {
-		int posPrint = -1;
 		List<PileupAlleleCall> answer = new ArrayList<PileupAlleleCall>(calls.size());
 		for(PileupAlleleCall call:calls) {
 			//Filter calls close to indel calls
@@ -313,11 +315,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		CalledGenomicVariant calledVar = discoverIndel(pileup, alleles, calls); 
 		//Ignore call if it is not variant with enough information to reject the reference allele
 		if(calledVar!=null && !passFiltersIndel(calledVar)) calledVar = null;
-		if(!pileup.isInputSTR() && calledVar==null) {
-			if (pileup.isNewSTR()) {
-				pileup.setSTR(false);
-				pileup.setNewSTR(false);
-			}
+		if(!pileup.isSTR() && calledVar==null) {
 			//Try SNV if the indel alleles were not good to make a call
 			calledVar = discoverSNV(pileup, referenceAllele.charAt(0));
 		}
@@ -338,7 +336,8 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	}
 	
 	private CalledGenomicVariant discoverIndel(PileupRecord pileup, String [] alleles, List<PileupAlleleCall> calls) {
-		CountsHelper helper = CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, 0.5, pileup.getPosition()==posPrint);
+		double logErrorProbIndel = calculateErrorProbIndel(pileup.isSTR());
+		CountsHelper helper = CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, 0.5, logErrorProbIndel, pileup.getPosition()==posPrint);
 		short ploidy = sample.getNormalPloidy();
 		if(ploidy<DEF_MIN_PLOIDY_POOL_ALGORITHM) {
 			return VariantDiscoverySNVQAlgorithm.callIndel(pileup, helper, null, heterozygosityRate, calcStrandBias);
@@ -358,6 +357,10 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 			if(indel == null || allelesSameLength(indel.getAlleles())) return null;
 			return genotypeVariantPool(indel, ploidy, calls, heterozygosityRate);
 		}
+	}
+	public static double calculateErrorProbIndel(boolean str) {
+		if(str) return DEF_LOG_ERROR_PROB_STR;
+		return DEF_LOG_ERROR_PROB_INDEL;
 	}
 	public static GenomicVariant createSNVVariantPool(PileupRecord pileup, CountsHelper helper, char reference, double minAlleleDepthFrequency) {
 		if(helper.getTotalCount()==0) {
@@ -443,7 +446,8 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 			if(ploidy>=DEF_MIN_PLOIDY_POOL_ALGORITHM) {
 				calledVar = genotypeVariantPool(variant, ploidy, calls, h);
 			} else {
-				CountsHelper helperIndel = CountsHelper.calculateCountsIndel(variant.getAlleles(), calls, maxBaseQS, 0.5, variant.getFirst()==posPrint);
+				double logErrorProbIndel = calculateErrorProbIndel(variant.getType()==GenomicVariant.TYPE_STR);
+				CountsHelper helperIndel = CountsHelper.calculateCountsIndel(variant.getAlleles(), calls, maxBaseQS, 0.5, logErrorProbIndel, variant.getFirst()==posPrint);
 				if(variant.getFirst()==posPrint) helperIndel.printProbs(helperIndel.getLogConditionalProbs(), false);
 				calledVar = VariantDiscoverySNVQAlgorithm.callIndel(pileup, helperIndel, variant, h, false);
 				calledVar.updateAllelesCopyNumberFromCounts(ploidy);
@@ -474,8 +478,9 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		List<CountsHelper> helpers = new ArrayList<CountsHelper>();
 		for(double freq = step;freq<0.51;freq+=step) {
 			freqs.add(freq);
+			double logErrorProbIndel = calculateErrorProbIndel(variant.getType()==GenomicVariant.TYPE_STR);
 			if(variant.isSNV()) helpers.add(CountsHelper.calculateCountsGTSNV(alleles, calls, maxBaseQS, freq));
-			else helpers.add(CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, freq,variant.getFirst()==posPrint));
+			else helpers.add(CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, freq, logErrorProbIndel, variant.getFirst()==posPrint));
 		}
 		if(variant.getFirst()==posPrint) System.out.println("Frequencies: "+freqs+" helpers: "+helpers.size());
 		//Select the first to obtain counts and most frequent allele

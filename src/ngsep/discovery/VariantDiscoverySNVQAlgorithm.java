@@ -304,8 +304,9 @@ public class VariantDiscoverySNVQAlgorithm {
 				if(allele1.length()!=referenceLength) lengthChange = true;
 				if(alleles.size()==3 && allele1.length()!=alleles.get(1).length()) lengthChange = true;
 			}
+			if(pileup.getPosition()==posPrint) System.out.println("Candidate indel alleles: "+alleles+" length change: "+lengthChange);
 			//No real indel if all alleles have the same length
-			if(!lengthChange && !pileup.isInputSTR()) return null;
+			if(!lengthChange) return null;
 			GenomicVariantImpl newVar = new GenomicVariantImpl(pileup.getSequenceName(), pileup.getPosition(), alleles);
 			if(pileup.isSTR()) newVar.setType(GenomicVariant.TYPE_STR);
 			else newVar.setType(GenomicVariant.TYPE_INDEL);

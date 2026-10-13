@@ -91,7 +91,7 @@ public class IndelRealignerPileupListener implements PileupListener {
 		GenomicVariant var = intersectWithVariants (pileup);
 		if(var!=null) {
 			if(var.getFirst()==pileup.getPosition()) {
-				if(var.getType()==GenomicVariant.TYPE_STR) pileup.setSTR(true);
+				//if(var.getType()==GenomicVariant.TYPE_STR) pileup.setSTR(true);
 				referenceSpan = var.getLast() - var.getFirst() + 1;
 				predictedEventEnd = var.getLast();
 				if(currentPos==posPrint)System.out.println("IndelRealigner. Var span: "+referenceSpan+". Predicted end: "+predictedEventEnd+" Var type "+var.getType());
@@ -197,8 +197,8 @@ public class IndelRealignerPileupListener implements PileupListener {
 					answer = newSpan;
 					eventEnd = currentPos+answer-1;
 					fixedEvent = true;
-					pileup.setSTR(true);
-					pileup.setNewSTR(true);
+					//pileup.setSTR(true);
+					//pileup.setNewSTR(true);
 					if(currentPos==posPrint) System.out.println("New tandem repeat identified from reads at "+pileup.getSequenceName()+":"+currentPos+" New max span: "+answer);
 				}
 			}

@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import ngsep.genome.ReferenceGenome;
 import ngsep.sequences.DNASequence;
 
 public class GenomicVariantImpl implements GenomicVariant {
@@ -38,6 +39,7 @@ public class GenomicVariantImpl implements GenomicVariant {
 	private boolean negativeStrand = false;
 	private short variantQS=0;
 	private byte type = GenomicVariant.TYPE_UNDETERMINED;
+	private boolean mononucleotide = false;
 	
 	private static Map<String, Byte> variantTypesByName = null;
 	private static Map<Byte, String> variantTypesById = null;
@@ -192,7 +194,29 @@ public class GenomicVariantImpl implements GenomicVariant {
 	@Override
 	public void setType(byte type) {
 		this.type = type;
+		if(this.type == TYPE_STR && alleles.size()>0) {
+			this.mononucleotide = isMononucleotide(alleles.get(0));
+		}
 	}
+	private boolean isMononucleotide(String allele) {
+		int n = allele.length();
+		if(n<5) return false;
+		int [] counts = new int [4];
+		int maxI = -1;
+		for(int i=0;i<n;i++) {
+			int k = DNASequence.BASES_STRING.indexOf(allele.charAt(i));
+			if(k>=0) counts[k]++;
+			if(maxI == -1 || counts[maxI]<counts[k]) maxI = k;
+		}
+		if(maxI == -1) return false;
+		if(counts[maxI]<n-2-n/10 ) return false;
+		return true;
+	}
+	public boolean isMononucleotide() {
+		return mononucleotide;
+	}
+
+
 	/**
 	 * Changes the quality score of the variant
 	 * @param variantQS New variant quality score
@@ -275,6 +299,19 @@ public class GenomicVariantImpl implements GenomicVariant {
 	@Override
 	public boolean isStructural() {
 		return getType()>=10;
+	}
+	
+	public static GenomicVariant makeSTRVariant(ReferenceGenome genome, String sequenceName, int first, int last) {
+		List<String> alleles = new ArrayList<String>();
+		CharSequence reference = genome.getReference(sequenceName, first, last);
+		if(reference==null) {
+			System.err.println("Reference not found for input STR at coordinates "+sequenceName+":"+first+"-"+last);
+			return null;
+		}
+		alleles.add(reference.toString().toUpperCase());
+		GenomicVariantImpl answer = new GenomicVariantImpl(sequenceName, first, alleles);
+		answer.setType(GenomicVariant.TYPE_STR);
+		return answer;
 	}
 	
 }

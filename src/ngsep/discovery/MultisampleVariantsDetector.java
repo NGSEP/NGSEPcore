@@ -620,13 +620,10 @@ public class MultisampleVariantsDetector implements PileupListener {
 		calls = SingleSampleVariantPileupListener.filterCalls(pileup, calls,basesToIgnore5P,basesToIgnore3P,false);
 		AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder(pileup.getSequenceName(),pileup.getPosition());
 		String [] alleles =  acBuilder.clusterAlleleCalls(pileup, calls, referenceAllele, maxBaseQS);
-		CountsHelper helper = CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, 0.5, pileup.getPosition()==posPrint);
+		double logErrorProbIndel = SingleSampleVariantPileupListener.calculateErrorProbIndel(pileup.isSTR());
+		CountsHelper helper = CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, 0.5, logErrorProbIndel, pileup.getPosition()==posPrint);
 		GenomicVariant variant = discoverPopulationIndel(pileup, helper);
-		if(!pileup.isInputSTR() && variant==null) {
-			if (pileup.isNewSTR()) {
-				pileup.setSTR(false);
-				pileup.setNewSTR(false);
-			}
+		if(!pileup.isSTR() && variant==null) {
 			//Try SNV if the indel alleles were not good to make a call
 			variant = discoverPopulationSNV(pileup, referenceAllele.charAt(0));
 		}
@@ -638,7 +635,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 		if(variant==null) return null;
 		// Redefine indel alleles based on genotype calls
 		while(variant.getAlleles().length>2) {
-			if(!pileup.isInputSTR() && SingleSampleVariantPileupListener.allelesSameLength(variant.getAlleles())) return null;
+			if(!pileup.isSTR() && SingleSampleVariantPileupListener.allelesSameLength(variant.getAlleles())) return null;
 			List<CalledGenomicVariant> calls = genotypeVariant(variant, pileup, heterozygosityRate);
 			if(variant.getVariantQS() < minQuality) return null;
 			GenomicVariant newVariant = makeNewVariant(variant, calls);

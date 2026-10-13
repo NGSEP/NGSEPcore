@@ -881,7 +881,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 			for(GenomicRegion r:seqSTRs) {
 				if(last == 0 || !mergeSTRs(genome, seqName,first,last,r)) {
 					if(last>0) {
-						GenomicVariant nextVar = makeSTRVariant(genome, seqName, Math.max(1, first-1),Math.min(last+1,seq.getLength()));
+						GenomicVariant nextVar = GenomicVariantImpl.makeSTRVariant(genome, seqName, Math.max(1, first-1),Math.min(last+1,seq.getLength()));
 						if(nextVar!=null) answer.add(nextVar);
 					}
 					
@@ -890,7 +890,7 @@ public class SingleSampleVariantsDetector implements PileupListener {
 				last = Math.max(last, r.getLast());
 			}
 			if(last>0) {
-				GenomicVariant nextVar = makeSTRVariant(genome, seqName, Math.max(1, first-1),Math.min(last+1,seq.getLength()));
+				GenomicVariant nextVar = GenomicVariantImpl.makeSTRVariant(genome, seqName, Math.max(1, first-1),Math.min(last+1,seq.getLength()));
 				if(nextVar!=null) answer.add(nextVar);
 			}
 		}
@@ -904,20 +904,6 @@ public class SingleSampleVariantsDetector implements PileupListener {
 		CharSequence ref2 = genome.getReference(sequenceName, r.getFirst(), r.getLast());
 		if(ref1==null || ref2==null) return false;
 		return AbstractLimitedSequence.getOverlapLength(ref1.toString().toUpperCase(), ref2.toString().toUpperCase())>5;
-	}
-
-
-	private static GenomicVariant makeSTRVariant(ReferenceGenome genome, String sequenceName, int first, int last) {
-		List<String> alleles = new ArrayList<String>();
-		CharSequence reference = genome.getReference(sequenceName, first, last);
-		if(reference==null) {
-			System.err.println("Reference not found for input STR at coordinates "+sequenceName+":"+first+"-"+last);
-			return null;
-		}
-		alleles.add(reference.toString().toUpperCase());
-		GenomicVariantImpl answer = new GenomicVariantImpl(sequenceName, first, alleles);
-		answer.setType(GenomicVariant.TYPE_STR);
-		return answer;
 	}
 
 	public void findSNVS() throws IOException {

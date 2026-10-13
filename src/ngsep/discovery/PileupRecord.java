@@ -28,6 +28,7 @@ import java.util.Set;
 import ngsep.alignments.ReadAlignment;
 import ngsep.genome.GenomicRegion;
 import ngsep.math.FisherExactTest;
+import ngsep.variants.GenomicVariant;
 
 /**
  * Class to store a pileup from many alignments spanning the same 
@@ -44,8 +45,6 @@ public class PileupRecord {
 	private int numUniqueAlns = 0;
 	private int numNegativeStrandAlns = 0;
 	private GenomicRegion activeRegion;
-	private boolean str = false;
-	private boolean newSTR = false;
 	
 	//DEBUG
 	private int posPrint = -1;
@@ -154,7 +153,7 @@ public class PileupRecord {
 			} else if (alleleCall.length()>1) continue;
 			//if(position==posPrint) System.out.println("getAlleleCalls. With span: "+referenceSpan+". Allele call: "+alleleCall+". Quality score: "+alnQS+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Read name: "+aln.getReadName()+". CIGAR: "+aln.getCigarString()+" negativeStrand: "+aln.isNegativeStrand()+". Ignore start: "+aln.getBasesToIgnoreStart()+" Ignore end: "+aln.getBasesToIgnoreEnd()+" STR: "+str+" read group: "+aln.getReadGroup());
 			
-			if(position==posPrint) System.out.println("getAlleleCalls. With span: "+referenceSpan+". Allele call: "+alleleCall.getAlleleString()+". Quality score: "+alleleCall.getQualityScores()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Read name: "+aln.getReadName()+" negativeStrand: "+aln.isNegativeStrand()+" STR: "+str+" read group: "+aln.getReadGroup());	
+			if(position==posPrint) System.out.println("getAlleleCalls. With span: "+referenceSpan+". Allele call: "+alleleCall.getAlleleString()+". Quality score: "+alleleCall.getQualityScores()+". Aln limits: "+aln.getFirst()+"-"+aln.getLast()+". Read name: "+aln.getReadName()+" negativeStrand: "+aln.isNegativeStrand()+" STR: "+isSTR()+" read group: "+aln.getReadGroup());	
 			alleleCalls.add(alleleCall);
 		}
 		if(position==posPrint) System.out.println("getAlleleCalls. Final number of allele calls: "+alleleCalls.size());
@@ -184,22 +183,8 @@ public class PileupRecord {
 	}
 
 	public boolean isSTR() {
-		return str;
-	}
-
-	public void setSTR(boolean str) {
-		this.str = str;
-	}
-
-	public boolean isNewSTR() {
-		return newSTR;
-	}
-
-	public void setNewSTR(boolean newSTR) {
-		this.newSTR = newSTR;
-	}
-	public boolean isInputSTR() {
-		return this.str && !newSTR;
+		if(activeRegion==null || !(activeRegion instanceof GenomicVariant)) return false;
+		return ((GenomicVariant)activeRegion).getType()==GenomicVariant.TYPE_STR;
 	}
 	
 	public double calculateStrandBiasPValue () {

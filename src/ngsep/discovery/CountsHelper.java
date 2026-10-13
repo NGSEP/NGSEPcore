@@ -45,7 +45,6 @@ public class CountsHelper {
 	private static final int DEF_NUM_FREQUENCIES = 501;
 	private static final byte DEF_MIN_BASE_QS = 3;
 	public static final byte DEF_MAX_BASE_QS = 30;
-	private static final double DEF_LOG_ERROR_PROB_INDEL = Math.log10(0.0001);
 
 	private int totalCount=0;
 	private int lowBaseQualityCount = 0;
@@ -134,13 +133,13 @@ public class CountsHelper {
 		}
 		return helper;
 	}
-	public static CountsHelper calculateCountsIndel(String [] alleles, List<PileupAlleleCall> calls, byte maxBaseQS, double heterozygousProportion, boolean verbose) {
+	public static CountsHelper calculateCountsIndel(String [] alleles, List<PileupAlleleCall> calls, byte maxBaseQS, double heterozygousProportion, double logErrorProbIndel, boolean verbose) {
 		CountsHelper helper = new CountsHelper(alleles);
 		helper.setVerbose(verbose);
 		if(maxBaseQS>0) helper.setMaxBaseQS(maxBaseQS);
 		helper.setHeterozygousProportion(heterozygousProportion);
 		for(PileupAlleleCall call: calls) {
-			helper.updateCountsIndel(call.getAlleleString(), call.getQualityScores(), call.isNegativeStrand());
+			helper.updateCountsIndel(call.getAlleleString(), call.getQualityScores(), call.isNegativeStrand(), logErrorProbIndel);
 		}
 		return helper;
 	}
@@ -247,7 +246,7 @@ public class CountsHelper {
 		}
 	}
 
-	public void updateCountsIndel(String call, String qualityScores, boolean negativeStrand) {
+	public void updateCountsIndel(String call, String qualityScores, boolean negativeStrand, double logErrorProbIndel) {
 		totalCount++;
 		int index = alleles.indexOf(call);
 		int f = (int)Math.round(heterozygousProportion*DEF_NUM_FREQUENCIES);
@@ -259,12 +258,12 @@ public class CountsHelper {
 			String alleleI = alleles.get(i);
 			if(alleleI.length()==call.length()) {
 				//Substitution log prob should not be larger than error log prob
-				logCondAlleles[i] = Math.max(DEF_LOG_ERROR_PROB_INDEL, calculateLogCond(alleleI,call,qualityScores));
-				if(logCondAlleles[i]>DEF_LOG_ERROR_PROB_INDEL) {
+				logCondAlleles[i] = Math.max(logErrorProbIndel, calculateLogCond(alleleI,call,qualityScores));
+				if(logCondAlleles[i]>logErrorProbIndel) {
 					if(bestIndex==-1 || logCondAlleles[bestIndex]<logCondAlleles[i]) bestIndex=i;
 				}
 			} else {
-				logCondAlleles[i] = DEF_LOG_ERROR_PROB_INDEL;
+				logCondAlleles[i] = logErrorProbIndel;
 			}
 			if(verbose) System.out.println("Allele: "+alleleI+" call: "+call+ " log cond: "+logCondAlleles[i]);
 		}
@@ -277,7 +276,7 @@ public class CountsHelper {
 		if(index>=0) {
 			//Update raw count
 			counts[index]++;
-			alleleErrorLogProbs[index] += DEF_LOG_ERROR_PROB_INDEL;
+			alleleErrorLogProbs[index] += logErrorProbIndel;
 			//Update strand counts
 			if(negativeStrand) countsStrand[index][0]++;
 			else countsStrand[index][1]++;
@@ -288,11 +287,11 @@ public class CountsHelper {
 			for(int j=0;j<logConditionalProbs[i].length;j++) {
 				if (i!=j) {
 					if(j==index ) {
-						logConditionalProbs[i][j]+=LogMath.logSum(alleleFreqCache[f][0]+logCondAlleles[index], alleleFreqCache[f][1]+DEF_LOG_ERROR_PROB_INDEL);
+						logConditionalProbs[i][j]+=LogMath.logSum(alleleFreqCache[f][0]+logCondAlleles[index], alleleFreqCache[f][1]+logErrorProbIndel);
 					} else if ( i==index) {
-						logConditionalProbs[i][j]+=LogMath.logSum(alleleFreqCache[f][1]+logCondAlleles[index], alleleFreqCache[f][0]+DEF_LOG_ERROR_PROB_INDEL);
+						logConditionalProbs[i][j]+=LogMath.logSum(alleleFreqCache[f][1]+logCondAlleles[index], alleleFreqCache[f][0]+logErrorProbIndel);
 					} else {
-						logConditionalProbs[i][j]+=DEF_LOG_ERROR_PROB_INDEL;
+						logConditionalProbs[i][j]+=logErrorProbIndel;
 					}
 				}
 			}
