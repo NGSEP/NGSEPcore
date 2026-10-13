@@ -32,6 +32,8 @@ import java.util.logging.Logger;
 import ngsep.alignments.ReadAlignment;
 import ngsep.alignments.ReadAlignment.Platform;
 import ngsep.assembly.io.AssemblyGraphFileHandler;
+import ngsep.discovery.AlignmentsPileupGenerator;
+import ngsep.discovery.SingleSampleVariantPileupListener;
 import ngsep.alignments.ReadsAligner;
 import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionPositionComparator;
@@ -135,6 +137,7 @@ public class AlignmentBasedIndelErrorsCorrector {
 				long usedMemory = (runtime.totalMemory()-runtime.freeMemory())/1000000;
 				log.info("AlignmentBasedIndelErrorsCorrector. Correcting errors for reads aligned to path: "+path.getPathId()+" length: "+path.getPathLength()+" Memory (Mbp): "+usedMemory);
 				List<CalledGenomicVariant> pathIndels = aligner.callIndels(path.getConsensus(), selectedAlns, 2);
+				//List<CalledGenomicVariant> pathIndels = callIndels(sequenceName, path.getConsensus(), selectedAlns);
 				usedMemory = (runtime.totalMemory()-runtime.freeMemory())/1000000;
 				log.info("AlignmentBasedIndelErrorsCorrector. Called indels in path: "+path.getPathId()+": "+pathIndels.size()+" Memory (Mbp): "+usedMemory);
 				Collections.sort(pathIndels,GenomicRegionPositionComparator.getInstance());
@@ -160,6 +163,27 @@ public class AlignmentBasedIndelErrorsCorrector {
 	}
 
 	
+
+	private List<CalledGenomicVariant> callIndels(String sequenceName, String consensus, List<ReadAlignment> alignments) {
+		ReferenceGenome genome = new ReferenceGenome(new QualifiedSequence(sequenceName,consensus.toString()));
+		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
+		SingleSampleVariantPileupListener variantCaller = new SingleSampleVariantPileupListener();
+		variantCaller.setGenome(genome);
+		variantCaller.setLogErrorProbIndel(SingleSampleVariantPileupListener.DEF_LOG_ERROR_PROB_INDEL_ONT);
+		generator.setLog(log);
+		generator.setGenome(genome);
+		generator.setMaxAlnsPerStartPos(0);
+		generator.addListener(variantCaller);
+		generator.setNumThreads(numThreads);
+		generator.processAlignments(alignments);
+		List<CalledGenomicVariant> allCalls = variantCaller.getCalledVariants();
+		List<CalledGenomicVariant> indels = new ArrayList<CalledGenomicVariant>();
+		for(CalledGenomicVariant call:allCalls) {
+			if(call.isSNV()) continue;
+			indels.add(call);
+		}
+		return indels;
+	}
 
 	private void correctErrors(AssemblyGraph graph, List<ReadAlignment> alignments, AssemblyPath path, List<CalledGenomicVariant> pathIndels, int [] sequencePaths) {
 		long start = System.currentTimeMillis();
