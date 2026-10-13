@@ -134,6 +134,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 	}
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;	
+		generator.setGenome(genome);
 	}
 	public void setGenome(String genomeFile) throws IOException {
 		setGenome(OptionValuesDecoder.loadGenomeWithLowerCase(genomeFile,log));
@@ -434,7 +435,6 @@ public class MultisampleVariantsDetector implements PileupListener {
 		if (genome==null) throw new IOException("The reference genome file is a required parameter");
 		referenceGenomeSize = genome.getTotalLength();
 		QualifiedSequenceList sequences = genome.getSequencesMetadata();
-		generator.setGenome(genome);
 		//TODO: assign sample ids if not in aln files
 		if(samples == null) loadSamplesFromAlignmentHeaders();
 		

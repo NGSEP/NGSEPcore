@@ -30,11 +30,11 @@ import ngsep.discovery.AlignmentsPileupGenerator;
 import ngsep.discovery.PileupAlleleCall;
 import ngsep.discovery.PileupListener;
 import ngsep.discovery.PileupRecord;
+import ngsep.genome.ReferenceGenome;
 import ngsep.math.NumberArrays;
 import ngsep.sequences.DNAMaskedSequence;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
-import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
 
 /**
@@ -128,11 +128,10 @@ public class ConsensusBuilderBidirectionalWithPolishing implements ConsensusBuil
 
 	private void correctSNVErrors(String sequenceName, StringBuilder consensus, List<ReadAlignment> alignments, List<CalledGenomicVariant> variants) {
 		SimpleSNVErrorCorrectorPileupListener errorCorrector = new SimpleSNVErrorCorrectorPileupListener(consensus);
-		QualifiedSequenceList metadata = new QualifiedSequenceList();
-		metadata.add(new QualifiedSequence(sequenceName,consensus.length()));
+		ReferenceGenome genome = new ReferenceGenome(new QualifiedSequence(sequenceName,consensus.toString()));
 		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
 		generator.setLog(log);
-		generator.setSequencesMetadata(metadata);
+		generator.setGenome(genome);
 		generator.setMaxAlnsPerStartPos(0);
 		generator.addListener(errorCorrector);
 		generator.setNumThreads(numThreads);

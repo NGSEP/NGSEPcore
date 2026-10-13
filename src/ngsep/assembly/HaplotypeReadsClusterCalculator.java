@@ -40,13 +40,13 @@ import ngsep.genome.GenomicRegion;
 import ngsep.genome.GenomicRegionImpl;
 import ngsep.genome.GenomicRegionPositionComparator;
 import ngsep.genome.GenomicRegionSortedCollection;
+import ngsep.genome.ReferenceGenome;
 import ngsep.haplotyping.HaplotypeBlock;
 import ngsep.haplotyping.SingleIndividualHaplotyper;
 import ngsep.math.Distribution;
 import ngsep.math.NumberArrays;
 import ngsep.sequences.DNASequence;
 import ngsep.sequences.QualifiedSequence;
-import ngsep.sequences.QualifiedSequenceList;
 import ngsep.variants.CalledGenomicVariant;
 import ngsep.variants.CalledGenomicVariantImpl;
 import ngsep.variants.CalledSNV;
@@ -329,12 +329,10 @@ public class HaplotypeReadsClusterCalculator {
 		SimpleVariantsDetectorPileupListener varsListener = new SimpleVariantsDetectorPileupListener(consensus);
 		varsListener.setCallIndels(true);
 		
-		
-		QualifiedSequenceList metadata = new QualifiedSequenceList();
-		metadata.add(new QualifiedSequence(sequenceName,consensus.length()));
+		ReferenceGenome genome = new ReferenceGenome(new QualifiedSequence(sequenceName,consensus.toString()));
 		AlignmentsPileupGenerator generator = new AlignmentsPileupGenerator();
 		generator.setLog(log);
-		generator.setSequencesMetadata(metadata);
+		generator.setGenome(genome);
 		generator.setMaxAlnsPerStartPos(0);
 		generator.addListener(varsListener);
 		generator.setNumThreads(numThreads);

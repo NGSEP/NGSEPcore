@@ -47,7 +47,8 @@ public class AlignmentsPileupGenerator {
 	
 	private Logger log = Logger.getLogger(AlignmentsPileupGenerator.class.getName());
 	private List<PileupListener> listeners = new ArrayList<PileupListener>();
-	//Required to process CRAM files
+	
+	//Required to process CRAM files and to identify active regions
 	private ReferenceGenome genome=null;
 	private QualifiedSequenceList sequencesMetadata;
 	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = null;
@@ -89,13 +90,7 @@ public class AlignmentsPileupGenerator {
 		return sequencesMetadata;
 	}
 
-	/**
-	 * @param sequencesMetadata the sequencesMetadata to set
-	 */
-	public void setSequencesMetadata(QualifiedSequenceList sequencesMetadata) {
-		this.sequencesMetadata = sequencesMetadata;
-	}
-
+	
 	public String getQuerySeq() {
 		return querySeq;
 	}
@@ -196,11 +191,12 @@ public class AlignmentsPileupGenerator {
 	public ReferenceGenome getGenome() {
 		return genome;
 	}
-
+	
 	public void setGenome(ReferenceGenome genome) {
 		this.genome = genome;
 		this.sequencesMetadata = genome.getSequencesMetadata();
 	}
+	
 	public void setInputVariants(GenomicRegionSortedCollection<GenomicVariant> inputVariants) {
 		this.inputVariants = inputVariants;
 	}
@@ -435,7 +431,7 @@ public class AlignmentsPileupGenerator {
 			} else if (maxAlnsPerStartPos<=0 || count<maxAlnsPerStartPos) {
 				alnsPerReadGroup.put(aln.getReadGroup(), count+1);
 			} else continue;
-			activeRegionsFinder.processAlignment(aln);
+			if (activeRegionsFinder!=null) activeRegionsFinder.processAlignment(aln);
 			pendingAlignments.add(aln);
 			//if(aln.getFirst()<4000) System.out.println("AlignmentsPileupGenerator. Updated active regions before and adding alignment: "+aln);
 		}
@@ -451,8 +447,10 @@ public class AlignmentsPileupGenerator {
 		log.info("Processing sequence "+currentReferenceSequence.getName());
 		currentReferencePos = aln.getFirst();
 		currentReferenceLast = aln.getLast();
-		activeRegionsFinder = new ActiveIndelRegionsFinder(genome);
-		if(inputVariants!=null) activeRegionsFinder.setInputVariants(inputVariants.getSequenceRegions(seqName).asList());
+		if(genome!=null) {
+			activeRegionsFinder = new ActiveIndelRegionsFinder(genome);
+			if(inputVariants!=null) activeRegionsFinder.setInputVariants(inputVariants.getSequenceRegions(seqName).asList());
+		}
 		for(PileupListener listener:listeners) listener.onSequenceStart(currentReferenceSequence);
 	}
 	private void endSequence() {
@@ -512,14 +510,14 @@ public class AlignmentsPileupGenerator {
 		if(currentReferencePos==posPrint) System.out.println("AlignmentsPileupGenerator. Updating pileup with active regions");
 		
 		if(currentReferencePos==posPrint)System.out.println("Number of alignments in pileup after realignment: "+pileup.getNumAlignments());
-		if(pendingPileups.size()>=MAX_SIZE_PENDING_PILEUPS && !activeRegionsFinder.isRegionInProgress()) processPendingPileups();
+		if(pendingPileups.size()>=MAX_SIZE_PENDING_PILEUPS && (activeRegionsFinder==null || !activeRegionsFinder.isRegionInProgress())) processPendingPileups();
 		pendingPileups.add(pileup);
 		if(currentReferencePos==posPrint)System.out.println("Added pileup to the queue");
 		currentReferencePos++;
 		return answer;
 	}
 	private void processPendingPileups() {
-		activeRegionsFinder.startPileups();
+		if (activeRegionsFinder!=null) activeRegionsFinder.startPileups();
 		ThreadPoolManager pileupProcessesManager= new ThreadPoolManager(numThreads, numThreads);
 		int pileupsPerThread = pendingPileups.size();
 		if(pendingPileups.size()>2*numThreads) pileupsPerThread = 1+pendingPileups.size()/numThreads;
@@ -554,7 +552,7 @@ public class AlignmentsPileupGenerator {
 
 	private void processPileupsGroup(List<PileupRecord> nextGroup) {
 		for(PileupRecord pileup:nextGroup) {
-			activeRegionsFinder.updatePileup(pileup);
+			if (activeRegionsFinder!=null) activeRegionsFinder.updatePileup(pileup);
 			processPileup(pileup);
 		}
 	}
