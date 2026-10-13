@@ -938,7 +938,10 @@ public class SingleSampleVariantsDetector implements PileupListener {
 				pl = reader.getUniquePlatform();
 			}
 		}
-		if(pl!=null && pl == Platform.ONT) generator.setMinPropSupportIndelCalls(0.4/normalPloidy);
+		if(pl!=null && pl == Platform.ONT) {
+			generator.setMinPropSupportIndelCalls(0.4/normalPloidy);
+			varListener.setLogErrorProbIndel(SingleSampleVariantPileupListener.DEF_LOG_ERROR_PROB_INDEL_ONT);
+		}
 		varListener.clear();
 		varListener.setGenome(genome);
 		varListener.setSample(s);

@@ -70,10 +70,10 @@ public class ActiveIndelRegionsFinder {
 	private void updateActiveRegions(int currentPos) {
 		if(currentPos<=lastPositionUpdate) return;
 		GenomicRegion rawRegion = rawRegions.peek();
-		//if(currentPos>3000 && currentPos<4000) System.out.println("Updating active regions until: "+currentPos+" . Raw regions: "+rawRegions.size());
+		//if(currentPos>4600 && currentPos<4800) System.out.println("Updating active regions until: "+currentPos+" . Raw regions: "+rawRegions.size());
 		while(rawRegion != null && rawRegion.getFirst()<currentPos) {
 			rawRegions.remove();
-			//if(currentPos>3000 && currentPos<4000) System.out.println("Updating active regions until: "+currentPos+" . Next region: "+rawRegion.getFirst()+"-"+rawRegion.getLast());
+			//if(currentPos>4600 && currentPos<5000) System.out.println("Updating active regions until: "+currentPos+" candidate: "+nextRegionCandidate+". Next region: "+rawRegion.getFirst()+"-"+rawRegion.getLast()+" support: "+countSupport);
 			if(nextRegionCandidate!=null && GenomicRegionSpanComparator.getInstance().span(nextRegionCandidate, rawRegion) ) {
 				if(rawRegion.getLast()>nextRegionCandidate.getLast()) {
 					if(nextRegionCandidate instanceof GenomicVariantImpl) ((GenomicVariantImpl)nextRegionCandidate).setLast(rawRegion.getLast());
@@ -83,7 +83,7 @@ public class ActiveIndelRegionsFinder {
 			} else if (nextRegionCandidate==null) {
 				nextRegionCandidate = rawRegion;
 			} else {
-				//if(nextRegionCandidate.length()>20) System.out.println("Adding region "+nextRegionCandidate.getSequenceName()+":"+nextRegionCandidate.getFirst()+"-"+nextRegionCandidate.getLast()+" "+nextRegionCandidate.length()+" support: "+countSupport);
+				//if(currentPos>4600 && currentPos<5000) System.out.println("Adding region "+nextRegionCandidate.getSequenceName()+":"+nextRegionCandidate.getFirst()+"-"+nextRegionCandidate.getLast()+" "+nextRegionCandidate.length()+" support: "+countSupport);
 				addActiveRegion (nextRegionCandidate);		
 				nextRegionCandidate = rawRegion;
 				countSupport=1;
@@ -91,6 +91,7 @@ public class ActiveIndelRegionsFinder {
 			rawRegion = rawRegions.peek();
 		}
 		if(nextRegionCandidate!=null && nextRegionCandidate.getLast()<currentPos) {
+			//if(currentPos>4600 && currentPos<5000) System.out.println("Adding region "+nextRegionCandidate.getSequenceName()+":"+nextRegionCandidate.getFirst()+"-"+nextRegionCandidate.getLast()+" "+nextRegionCandidate.length()+" support: "+countSupport);
 			addActiveRegion(nextRegionCandidate);
 			nextRegionCandidate = null;
 		}

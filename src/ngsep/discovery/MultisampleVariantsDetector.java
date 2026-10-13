@@ -620,7 +620,7 @@ public class MultisampleVariantsDetector implements PileupListener {
 		calls = SingleSampleVariantPileupListener.filterCalls(pileup, calls,basesToIgnore5P,basesToIgnore3P,false);
 		AlleleCallClustersBuilder acBuilder = new AlleleCallClustersBuilder(pileup.getSequenceName(),pileup.getPosition());
 		String [] alleles =  acBuilder.clusterAlleleCalls(pileup, calls, referenceAllele, maxBaseQS);
-		double logErrorProbIndel = SingleSampleVariantPileupListener.calculateErrorProbIndel(pileup.isSTR());
+		double logErrorProbIndel = calculateErrorProbIndel(pileup.isSTR());
 		CountsHelper helper = CountsHelper.calculateCountsIndel(alleles, calls, maxBaseQS, 0.5, logErrorProbIndel, pileup.getPosition()==posPrint);
 		GenomicVariant variant = discoverPopulationIndel(pileup, helper);
 		if(!pileup.isSTR() && variant==null) {
@@ -630,6 +630,11 @@ public class MultisampleVariantsDetector implements PileupListener {
 		return variant;
 	}
 
+	private double calculateErrorProbIndel(boolean str) {
+		// TODO Integrate with method in SingleSampleVariantPileupListener
+		if(str) return SingleSampleVariantPileupListener.DEF_LOG_ERROR_PROB_STR;
+		return SingleSampleVariantPileupListener.DEF_LOG_ERROR_PROB_INDEL_HQ;
+	}
 	private GenomicVariant discoverPopulationIndel(PileupRecord pileup, CountsHelper helperIndel) {
 		GenomicVariant variant = SingleSampleVariantPileupListener.createIndelVariantPool(pileup, helperIndel);
 		if(variant==null) return null;

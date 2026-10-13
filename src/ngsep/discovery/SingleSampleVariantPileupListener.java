@@ -51,9 +51,9 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	public static final short DEF_MIN_QUALITY = 40;
 	public static final String DEF_SAMPLE_ID = "Sample";
 	public static final byte DEF_MIN_PLOIDY_POOL_ALGORITHM = 3;
-	
-	private static final double DEF_LOG_ERROR_PROB_INDEL = Math.log10(0.0001);
-	private static final double DEF_LOG_ERROR_PROB_STR = Math.log10(0.01);
+	public static final double DEF_LOG_ERROR_PROB_INDEL_HQ = Math.log10(0.0001);
+	public static final double DEF_LOG_ERROR_PROB_INDEL_ONT = Math.log10(0.01);
+	public static final double DEF_LOG_ERROR_PROB_STR = Math.log10(0.01);
 	
 	private GenomicRegionSortedCollection<CalledGenomicVariant> calledVariants = new GenomicRegionSortedCollection<CalledGenomicVariant>();
 	
@@ -67,6 +67,8 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 	private short minQuality = DEF_MIN_QUALITY;
 	private byte basesToIgnore5P = 0;
 	private byte basesToIgnore3P = 0;
+	private double logErrorProbIndel = DEF_LOG_ERROR_PROB_INDEL_HQ;
+	private double logErrorProbSTR = DEF_LOG_ERROR_PROB_STR;
 	
 	// Parameters only for listener mode
 	private GenomicRegionSortedCollection<GenomicVariant> inputVariants = new GenomicRegionSortedCollection<GenomicVariant>();
@@ -150,6 +152,19 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 
 	public void setBasesToIgnore3P(byte basesToIgnore3P) {
 		this.basesToIgnore3P = basesToIgnore3P;
+	}
+	
+	public double getLogErrorProbIndel() {
+		return logErrorProbIndel;
+	}
+	public void setLogErrorProbIndel(double logErrorProbIndel) {
+		this.logErrorProbIndel = logErrorProbIndel;
+	}
+	public double getLogErrorProbSTR() {
+		return logErrorProbSTR;
+	}
+	public void setLogErrorProbSTR(double logErrorProbSTR) {
+		this.logErrorProbSTR = logErrorProbSTR;
 	}
 	public List<GenomicVariant> getInputVariants() {
 		return inputVariants.asList();
@@ -331,7 +346,7 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 		for(int i=0;i<calledAlleles.length && !checkQuality;i++) {
 			if(calledAlleles[i]==0) checkQuality=true;
 		}
-		if(checkQuality && calledVar.getGenotypeQuality()<minQuality) return false;
+		if(checkQuality && calledVar.getVariantQS()<minQuality) return false;
 		return true;
 	}
 	
@@ -358,9 +373,9 @@ public class SingleSampleVariantPileupListener implements PileupListener {
 			return genotypeVariantPool(indel, ploidy, calls, heterozygosityRate);
 		}
 	}
-	public static double calculateErrorProbIndel(boolean str) {
-		if(str) return DEF_LOG_ERROR_PROB_STR;
-		return DEF_LOG_ERROR_PROB_INDEL;
+	private double calculateErrorProbIndel(boolean str) {
+		if(str) return logErrorProbSTR;
+		return logErrorProbIndel;
 	}
 	public static GenomicVariant createSNVVariantPool(PileupRecord pileup, CountsHelper helper, char reference, double minAlleleDepthFrequency) {
 		if(helper.getTotalCount()==0) {
